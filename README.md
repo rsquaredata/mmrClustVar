@@ -5,7 +5,7 @@ R package implementing multiple variable clustering algorithms (quantitative and
 
 ## Overview
 
-***mmrClustVar** is an academic project developed as part of the Master 2 SISE (Statistics and Computer Science for Data Science) at **Université Lyon 2**.
+**mmrClustVar** is an academic project developed as part of the Master 2 SISE (Statistics and Computer Science for Data Science) at **Université Lyon 2**.
 
 The goal is to design a **fully functional R package** that implements several **variable clustering** algorithms provides interpretable outputs for data exploration.
 
