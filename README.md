@@ -46,7 +46,7 @@ Rina RAZAFIMAHEFA
 
 ---
 
-## Referances
+## References
 
 Rakotomalala R., Cours de Programmation R - M2 SISE 2025-2026 \[Teaching material\]  
 The R Foundation. (2024). *The R Journal*. Retrieved from [https://journal.r-project.org](https://journal.r-project.org)  
