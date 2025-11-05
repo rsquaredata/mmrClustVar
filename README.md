@@ -25,15 +25,19 @@ Key features include:
 
 ## Installation
 
+Install directly from GitHub
 ```r
-# install directly from GitHub
 devtools::install_github("rsquaredata/mmrClustVar")
-# load the package
 ```
 
 ---
 
 ## Usage
+
+Load the package
+```r
+library(mmrClustVar)
+```
 
 ---
 
