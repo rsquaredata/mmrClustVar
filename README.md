@@ -40,8 +40,8 @@ devtools: install_github("username/mmrClustVar")
 
 ## Authors
 
-Marin NAGY
-Mazilda ZEHRAOUI
+Marin NAGY  
+Mazilda ZEHRAOUI  
 Rina RAZAFIMAHEFA
 
 ---
