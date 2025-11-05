@@ -27,10 +27,9 @@ Key features include:
 
 ```r
 # install directly from GitHub
-devtools: install_github("username/mmrClustVar")
+devtools::install_github("rsquaredata/mmrClustVar")
 # load the package
 ```
-> /!\ Replace `username` with your GitHub name.
 
 ---
 
@@ -40,9 +39,9 @@ devtools: install_github("username/mmrClustVar")
 
 ## Authors
 
-Marin NAGY  
-Mazilda ZEHRAOUI  
-Rina RAZAFIMAHEFA
+[Marin NAGY](https://github.com/marinoo3)  
+[Mazilda ZEHRAOUI](https://github.com/zehraouimazilda)  
+[Rina RAZAFIMAHEFA](https://github.com/rsquaredata)  
 
 ---
 
