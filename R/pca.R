@@ -1,8 +1,9 @@
 library(R6)
+library(corrplot)
 
 
 
-.PCA <- R6Class("PCA",
+PCA <- R6Class("PCA",
 
   private = list(
     .X = NA
@@ -10,34 +11,81 @@ library(R6)
 
   public = list(
 
-    initialize = function(data) {
+    eigen = NULL,
+    calc = NULL,
 
-      df.ok <- is.data.frame(data)
+    initialize = function(X, center=FALSE, scale=FALSE) {
+
+      df.ok <- is.data.frame(X)
       if(!df.ok) {
         stop(paste("Invalid `data` type. Expected data.frame, got", class(data)))
       }
-      nb.ok <- sum(sapply(data,function(x){is.numeric(x)}))
+      nb.ok <- sum(sapply(X,function(x){is.numeric(x)}))
       if(!nb.ok) {
         stop("Non numeric `data` values")
       }
 
-      private$.X <- data
-    }
+      private$.X <- as.data.frame(scale(X, center=center, scale=scale))
+      self$calc <- princomp(private$.X, cor=TRUE, scores=TRUE)
+      self$eigen <- self$calc$sdev^2
+    },
 
-    perform_pca = function(n_comps=NA, center=TRUE) {
+    print = function(...) {
+      cat("Variables : ", colnames(private$.X), "\n")
+      cat("Valeurs propres : ", self$eigen, "\n")
+    },
 
-      # Center the data
-      X <- scale(private$.X, center=center, scale=FALSE)
+    summary = function(ncomp=2) {
 
-      # Calculate covariance matrix
-      covariance_matrix <- cov(X)
+      if (is.null(ncomp) || ncomp <= 0 || ncomp > length(self$eigen))
+      {
+        ncomp = min(2, length(self$eigen))
+      }
 
-      # Get eigenvalues and eigenvectors
-      eigen_decomposition <- eigen(covariance_matrix)
-      eigenvalues <- eigen_decomposition$values
-      eigenvectors <- eigen_decomposition$vectors
+      cat("Valeurs propres : ", self$eigen, "\n")
+      cat("Correlations","\n")
+      temp <- as.matrix(self$calc$loadings[,1:ncomp])
+      correl <- sapply(1:ncomp, function(j){ temp[,j]*sqrt(self$eigen[j]) })
+      colnames(correl) <- paste("Comp.", 1:ncomp, sep="")
+      print(correl, digits=3)
+    },
+
+    screeplot = function(thresholds=FALSE) {
+      plot(1:length(self$eigen), self$eigen, main="Eigen values", type="b")
+      if(thresholds) {
+        bb <- sort(cumsum(1/(length(self$eigen):1)), decreasing=TRUE)
+        lines(1:length(self$eigen), bb, type="b", col="red")
+      }
+    },
+
+    correl_circle = function(comp1=1, comp2=2) {
+
+      c1 <- self$calc$loadings[,comp1] * self$calc$sdev[comp1]
+      c2 <- self$calc$loadings[,comp2] * self$calc$sdev[comp2]
+
+      plot(c1, c2, xlim=c(-1,+1), ylim=c(-1,+1), type="n", asp=1)
+      abline(h=0,v=0)
+      text(ifelse(c1>0, c1+0.1, c1-0.1), c2, labels=colnames(private$.X), cex=1, col="blue", font=2)
+      symbols(0, 0, circles=1, inches=F, add=TRUE)
+
+      arrows(0, 0, x1=c1, y1=c2, angle=10, col="gray")
+    },
+
+    correl_heat = function(used_comp=1) {
+
+      if (is.null(used_comp) || used_comp < 1 || used_comp > length(self$eigen)){
+        corrplot(cor(private$.X))
+      } else
+      {
+        ord <- order(self$calc$loadings[,used_comp])
+        corrplot(cor(private$.X[ord]))
+      }
     }
 
   )
 
 )
+
+data(mtcars)
+acp = PCA$new(mtcars, center=TRUE)
+acp$correl_heat()
