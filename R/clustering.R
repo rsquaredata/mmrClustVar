@@ -3,16 +3,26 @@ library(R6)
 
 .Clustering <- R6Class("Clustering",
 
+    private = list(
+      # Attributes
+      .n_cluster = NULL
+    ),
+
     public = list(
 
-      n_cluster = NULL,
-
+      # Init
       initialize = function(n_cluster = NA) {
-        self$n_cluster <- n_cluster
+        private$.n_cluster <- n_cluster
       },
 
+      # Getter methods
+      get_n_cluster = function() {
+        return(private$.n_cluster)
+      },
+
+      # Abstract methods
       fit = function() {
-        stop()
+        stop("The `fit` method should be implemented in subclasses of Clustering")
       }
     )
 
