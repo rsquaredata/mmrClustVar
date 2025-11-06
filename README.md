@@ -43,9 +43,9 @@ library(mmrClustVar)
 
 ## Authors
 
-[Marin NAGY](https://github.com/marinoo3)  
-[Mazilda ZEHRAOUI](https://github.com/zehraouimazilda)  
-[Rina RAZAFIMAHEFA](https://github.com/rsquaredata)  
+Marin NAGY [@marinoo3](https://github.com/marinoo3)  
+Mazilda ZEHRAOUI [@zehraouimazilda](https://github.com/zehraouimazilda)  
+Rina RAZAFIMAHEFA [@rsquaredata](https://github.com/rsquaredata)  
 
 ---
 
