@@ -6,7 +6,7 @@ library(corrplot)
 PCA <- R6Class("PCA",
 
   private = list(
-    .X = NA
+    .X = NULL
   ),
 
   public = list(
@@ -85,7 +85,3 @@ PCA <- R6Class("PCA",
   )
 
 )
-
-data(mtcars)
-acp = PCA$new(mtcars, center=TRUE)
-acp$correl_heat()
