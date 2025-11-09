@@ -5,8 +5,9 @@ library(R6)
 #' @title K-means
 #' @description Implementation of the K-means clustering algorithm.
 #' @examples
-#' kmeans_model <- Kmeans$new(n_cluster=3)
+#' kmeans_model <- Kmeans$new(n_cluster=5)
 #' result <- kmeans_model$fit(mtcars)
+#' print(result$clusters)
 #' kmeans_model$scatterplot(mtcars, 'mpg', 'hp')
 Kmeans <- R6Class("K-means",
 
@@ -31,6 +32,15 @@ Kmeans <- R6Class("K-means",
       return(FALSE)
     },
 
+    .allocate = function(X, K, centers) {
+      # Compute distance to centroids
+      distance_matrix <- as.matrix(dist(rbind(centers, X), method="euclidean"))
+      distance_matrix <- distance_matrix[-(1:K), 1:K]
+      # Assign to cluster
+      cluster_assignment <- apply(distance_matrix, 1, which.min)
+      return(cluster_assignment)
+    },
+
     .clusterize = function(X, n, K) {
 
       # Initialize K random centers
@@ -45,9 +55,7 @@ Kmeans <- R6Class("K-means",
         previous_cluster_assignment <- cluster_assignment
         iter = iter+1
         # Allocation step
-        distance_matrix <- as.matrix(dist(rbind(centers, X), method="euclidean"))
-        distance_matrix <- distance_matrix[-(1:K), 1:K]
-        cluster_assignment <- apply(distance_matrix, 1, which.min)
+        cluster_assignment <- private$.allocate(X, K=K, centers=centers)
         # Recalculate centers
         for (g in 1:K) {
           if (sum(cluster_assignment == g) > 0) {
@@ -100,7 +108,7 @@ Kmeans <- R6Class("K-means",
       .og_means <- colMeans(X)
       .og_sds <- apply(X, 2, sd)
 
-      X <- self$scale(X) # center and scale X if `center` and `scale` == TRUE
+      X <- private$.perform_scale(X) # center and scale X if `center` and `scale` == TRUE
       n <- nrow(X)
       K <- self$get.n_cluster()
 
@@ -110,7 +118,7 @@ Kmeans <- R6Class("K-means",
 
         compute.W_for_k <- function(k) {
           result <- private$.clusterize(X, n, k)
-          W <- self$compute.W(X, clusters=result$clusters, centers=result$centers)
+          W <- private$.compute_W(X, clusters=result$clusters, centers=result$centers)
           return(W)
         }
 
@@ -118,18 +126,17 @@ Kmeans <- R6Class("K-means",
         K_values <- 2:15
         W_values <- sapply(K_values, compute.W_for_k)
         # Find curve elbow (best result)
-        print(W_values)
-        elbow_index <- self$find.elbow(K_values, W_values, plot=TRUE, plot_axis=c("K", "W score"))
+        elbow_index <- private$.find_elbow(K_values, W_values, plot=TRUE, plot_axis=c("K", "W score"))
         K <- K_values[elbow_index]
         self$set.n_cluster(K)
       }
 
       # Compute cluster and W score
       result <- private$.clusterize(X, n, K)
-      W <- self$compute.W(X, clusters=result$clusters, centers=result$centers)
+      W <- private$.compute_W(X, clusters=result$clusters, centers=result$centers)
       # Sets private atttibutes
       private$.clusters <- result$clusters
-      private$.centers <- self$unscale(result$centers, og_means=.og_means, og_sds=.og_sds)
+      private$.centers <- private$.perform_unscale(result$centers, og_means=.og_means, og_sds=.og_sds)
 
       # TODO: compute "proportion de variance expliquée par le partitionnement" for each group
 
@@ -138,6 +145,16 @@ Kmeans <- R6Class("K-means",
         centers = private$.centers,
         W = W
       ))
+    },
+
+    #' @description
+    #' Predict the cluster group for each observation of the data
+    #' @param X A data.frame or matrix on which to predict cluster groups
+    #' @return `clusters`: An integer vector indicating the cluster to which each point is allocated
+    predict = function(X) {
+      K <- self$get.n_cluster()
+      clusters <- private$.allocate(X, K=K, centers=private$.centers)
+      return(clusters)
     },
 
     #' @description
@@ -166,5 +183,22 @@ Kmeans <- R6Class("K-means",
 )
 
 
+data(mtcars)
+
+df <- as.data.frame(mtcars)
+# Define the proportion for the first sample
+prop <- 0.7
+# Determine the number of rows for the first sample
+n <- nrow(df)
+n1 <- floor(n * prop)
+# Generate a random sample of row indices
+indices <- sample(seq_len(n), size = n1)
+# Split the dataframe into two samples
+train <- df[indices, ]
+test <- df[-indices, ]
+
+kmeans_model <- Kmeans$new()
+train_result <- kmeans_model$fit(train)
+test_result <- kmeans_model$predict(test)
 
 

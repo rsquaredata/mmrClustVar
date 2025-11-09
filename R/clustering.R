@@ -4,50 +4,20 @@ library(R6)
 .Clustering <- R6Class("Clustering",
 
     private = list(
+
       # Attributes
       .n_cluster = NULL,
       .center = NULL,
       .scale = NULL,
       .max_iter = NULL,
-      .og_means = NULL,
-      .og_sds = NULL
-    ),
-
-    public = list(
-
-      # Init
-      initialize = function(n_cluster, center, scale, max_iter, seed) {
-        private$.n_cluster <- n_cluster
-        private$.center <- center
-        private$.scale <- scale
-        private$.max_iter <- max_iter
-        set.seed(seed) # set random seed
-      },
-
-      # Getter methods
-      get.n_cluster = function() {
-        return(private$.n_cluster)
-      },
-      get.max_iter = function() {
-        return(private$.max_iter)
-      },
-
-      # Setters
-      set.n_cluster = function(K) {
-        private$.n_cluster <- K
-      },
 
       # Util methods
-      scale = function(X) {
-
-        private$.og_means <-colMeans(X)
-        private$.og_sds <- apply(X, 2, sd)
+      .perform_scale = function(X) {
         X <- as.data.frame(scale(X, center=private$.center, scale=private$.scale))
-
         return(X)
       },
 
-      unscale = function(X, og_means, og_sds) {
+      .perform_unscale = function(X, og_means, og_sds) {
 
         unscaled_X <- X
 
@@ -61,7 +31,7 @@ library(R6)
         return(unscaled_X)
       },
 
-      compute.W = function(X, clusters, centers) {
+      .compute_W = function(X, clusters, centers) {
 
         W <- 0
         K <- nrow(centers)
@@ -78,7 +48,7 @@ library(R6)
         return(W)
       },
 
-      find.elbow = function(x, y, plot=FALSE, plot_axis=c("x", "y")) {
+      .find_elbow = function(x, y, plot=FALSE, plot_axis=c("x", "y")) {
 
         perpendicular_distance <- function(x, y, slope, intercept) {
           distance <- abs(slope * x - y + intercept) / sqrt(slope^2 + 1)
@@ -105,6 +75,31 @@ library(R6)
         }
 
         return(elbow_index)
+      }
+    ),
+
+    public = list(
+
+      # Init
+      initialize = function(n_cluster, center, scale, max_iter, seed) {
+        private$.n_cluster <- n_cluster
+        private$.center <- center
+        private$.scale <- scale
+        private$.max_iter <- max_iter
+        set.seed(seed) # set random seed
+      },
+
+      # Getter methods
+      get.n_cluster = function() {
+        return(private$.n_cluster)
+      },
+      get.max_iter = function() {
+        return(private$.max_iter)
+      },
+
+      # Setter methods
+      set.n_cluster = function(K) {
+        private$.n_cluster <- K
       },
 
       # Abstract methods
