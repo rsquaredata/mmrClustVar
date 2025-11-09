@@ -153,11 +153,13 @@ Kmeans <- R6Class("K-means",
     #' @return `clusters`: An integer vector indicating the cluster to which each point is allocated
     predict = function(X) {
 
+      # TODO: Mistakes are made here, points doesn't get assigned to the right cluster
+
       K <- self$get.n_cluster()
       clusters <- private$.allocate(X, K=K, centers=private$.centers)
       W <- private$.compute_W(X, clusters=clusters, centers=private$.centers)
 
-      private$.clusters <- c(clusters, private$.clusters)
+      private$.clusters <- c(private$.clusters, clusters)
 
       return(list(
         clusters=clusters,
@@ -172,6 +174,7 @@ Kmeans <- R6Class("K-means",
     #' @param var2 A string representing the column name to display on y axis
     scatterplot = function(X, var1, var2) {
 
+      # convert to
       cluster_colors <- as.numeric(private$.clusters[rownames(X)])
 
       plot(X[[var1]], X[[var2]],
@@ -200,22 +203,6 @@ Kmeans <- R6Class("K-means",
 )
 
 
-data(mtcars)
 
-df <- as.data.frame(mtcars[, c("mpg", "hp")])
-# Define the proportion for the first sample
-prop <- 0.7
-# Determine the number of rows for the first sample
-n <- nrow(df)
-n1 <- floor(n * prop)
-# Generate a random sample of row indices
-indices <- sample(seq_len(n), size = n1)
-# Split the dataframe into two samples
-sample1 <- df[indices, ]
-sample2 <- df[-indices, ]
-
-kmeans_model <- Kmeans$new()
-result <- kmeans_model$fit(sample1)
-p_result <- kmeans_model$predict(sample2)
 
 
