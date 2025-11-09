@@ -15,8 +15,8 @@ Kmeans <- R6Class("K-means",
 
   private = list(
 
-    .clusters = NULL,
     .centers = NULL,
+    .clusters = NULL,
 
     .stop_iter = function(clust_1, clust_2, iter) {
 
@@ -152,20 +152,30 @@ Kmeans <- R6Class("K-means",
     #' @param X A data.frame or matrix on which to predict cluster groups
     #' @return `clusters`: An integer vector indicating the cluster to which each point is allocated
     predict = function(X) {
+
       K <- self$get.n_cluster()
       clusters <- private$.allocate(X, K=K, centers=private$.centers)
-      return(clusters)
+      W <- private$.compute_W(X, clusters=clusters, centers=private$.centers)
+
+      private$.clusters <- c(clusters, private$.clusters)
+
+      return(list(
+        clusters=clusters,
+        W=W
+      ))
     },
 
     #' @description
     #' Draw a scatterplot highlighting the cluster groups on 2 variables of the data
-    #' @param X A data.frame or matrix used for computing the culsters
+    #' @param X A data.frame or matrix used for computing the clusters
     #' @param var1 A string representing the column name to display on x axis
     #' @param var2 A string representing the column name to display on y axis
     scatterplot = function(X, var1, var2) {
 
+      cluster_colors <- as.numeric(private$.clusters[rownames(X)])
+
       plot(X[[var1]], X[[var2]],
-         col = private$.clusters,
+         col = cluster_colors,
          pch = 19,
          xlab = var1,
          ylab = var2,
@@ -177,6 +187,13 @@ Kmeans <- R6Class("K-means",
          pch = 4,
          cex = 2,
          lwd = 2)
+    },
+
+    test = function() {
+      return(list(
+        clusters=private$.clusters,
+        centers=private$.centers
+      ))
     }
   )
 
@@ -185,7 +202,7 @@ Kmeans <- R6Class("K-means",
 
 data(mtcars)
 
-df <- as.data.frame(mtcars)
+df <- as.data.frame(mtcars[, c("mpg", "hp")])
 # Define the proportion for the first sample
 prop <- 0.7
 # Determine the number of rows for the first sample
@@ -194,11 +211,11 @@ n1 <- floor(n * prop)
 # Generate a random sample of row indices
 indices <- sample(seq_len(n), size = n1)
 # Split the dataframe into two samples
-train <- df[indices, ]
-test <- df[-indices, ]
+sample1 <- df[indices, ]
+sample2 <- df[-indices, ]
 
 kmeans_model <- Kmeans$new()
-train_result <- kmeans_model$fit(train)
-test_result <- kmeans_model$predict(test)
+result <- kmeans_model$fit(sample1)
+p_result <- kmeans_model$predict(sample2)
 
 
