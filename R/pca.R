@@ -5,16 +5,12 @@ library(corrplot)
 
 PCA <- R6Class("PCA",
 
-  private = list(
-    .X = NULL
-  ),
-
   public = list(
 
     eigen = NULL,
     calc = NULL,
 
-    initialize = function(X, center=FALSE, scale=FALSE) {
+    initialize = function(X) {
 
       df.ok <- is.data.frame(X)
       if(!df.ok) {
@@ -25,13 +21,13 @@ PCA <- R6Class("PCA",
         stop("Non numeric `data` values")
       }
 
-      private$.X <- as.data.frame(scale(X, center=center, scale=scale))
-      self$calc <- princomp(private$.X, cor=TRUE, scores=TRUE)
+      X <- as.data.frame(X)
+      self$calc <- princomp(X, cor=TRUE, scores=TRUE)
       self$eigen <- self$calc$sdev^2
     },
 
-    print = function(...) {
-      cat("Variables : ", colnames(private$.X), "\n")
+    print = function(X) {
+      cat("Variables : ", colnames(X), "\n")
       cat("Valeurs propres : ", self$eigen, "\n")
     },
 
@@ -58,27 +54,27 @@ PCA <- R6Class("PCA",
       }
     },
 
-    correl_circle = function(comp1=1, comp2=2) {
+    correl_circle = function(X, comp1=1, comp2=2) {
 
       c1 <- self$calc$loadings[,comp1] * self$calc$sdev[comp1]
       c2 <- self$calc$loadings[,comp2] * self$calc$sdev[comp2]
 
       plot(c1, c2, xlim=c(-1,+1), ylim=c(-1,+1), type="n", asp=1)
       abline(h=0,v=0)
-      text(ifelse(c1>0, c1+0.1, c1-0.1), c2, labels=colnames(private$.X), cex=1, col="blue", font=2)
+      text(ifelse(c1>0, c1+0.1, c1-0.1), c2, labels=colnames(X), cex=1, col="blue", font=2)
       symbols(0, 0, circles=1, inches=F, add=TRUE)
 
       arrows(0, 0, x1=c1, y1=c2, angle=10, col="gray")
     },
 
-    correl_heat = function(used_comp=1) {
+    correl_heat = function(X, used_comp=1) {
 
       if (is.null(used_comp) || used_comp < 1 || used_comp > length(self$eigen)){
-        corrplot(cor(private$.X))
+        corrplot(cor(X))
       } else
       {
         ord <- order(self$calc$loadings[,used_comp])
-        corrplot(cor(private$.X[ord]))
+        corrplot(cor(X[ord]))
       }
     }
 

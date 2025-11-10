@@ -15,6 +15,8 @@ Kmeans <- R6Class("K-means",
 
   private = list(
 
+    .X = NULL,
+    .pca = NULL,
     .centers = NULL,
     .clusters = NULL,
 
@@ -134,6 +136,7 @@ Kmeans <- R6Class("K-means",
       # Save private attributes
       private$.clusters <- result$clusters
       private$.centers <- result$centers
+      private$.X <- X
 
       # TODO: compute "proportion de variance expliquée par le partitionnement" for each group
 
@@ -165,10 +168,14 @@ Kmeans <- R6Class("K-means",
 
     #' @description
     #' Draw a scatterplot highlighting the cluster groups on 2 variables of the data
-    #' @param X A data.frame or matrix used for computing the clusters
+    #' @param X A data.frame or matrix used for computing the clusters (use train data if NULL)
     #' @param var1 A string representing the column name to display on x axis
     #' @param var2 A string representing the column name to display on y axis
-    scatterplot = function(X, var1, var2) {
+    scatterplot = function(X=NULL, var1, var2) {
+
+      if(is.null(X)) {
+        X <- private$.perform_unscale(private$.X)
+      }
 
       # convert to a sequence
       cluster_colors <- as.numeric(private$.clusters[rownames(X)])
@@ -194,5 +201,9 @@ Kmeans <- R6Class("K-means",
 )
 
 
+data(mtcars)
 
+kmeans_model <- Kmeans$new()
+kmeans_model$fit(mtcars[, c('mpg', 'hp')])
+kmeans_model$scatterplot(var1='mpg', var2='hp')
 
