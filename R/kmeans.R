@@ -105,10 +105,7 @@ Kmeans <- R6Class("K-means",
         return(NULL)
       }
 
-      .og_means <- colMeans(X)
-      .og_sds <- apply(X, 2, sd)
-
-      X <- private$.perform_scale(X) # center and scale X if `center` and `scale` == TRUE
+      X <- private$.perform_scale(X, set=TRUE) # center and scale X if `center` and `scale` == TRUE
       n <- nrow(X)
       K <- self$get.n_cluster()
 
@@ -134,15 +131,15 @@ Kmeans <- R6Class("K-means",
       # Compute cluster and W score
       result <- private$.clusterize(X, n, K)
       W <- private$.compute_W(X, clusters=result$clusters, centers=result$centers)
-      # Sets private atttibutes
+      # Save private attributes
       private$.clusters <- result$clusters
-      private$.centers <- private$.perform_unscale(result$centers, og_means=.og_means, og_sds=.og_sds)
+      private$.centers <- result$centers
 
       # TODO: compute "proportion de variance expliquée par le partitionnement" for each group
 
       return(list(
         clusters = private$.clusters,
-        centers = private$.centers,
+        centers = private$.perform_unscale(result$centers),
         W = W
       ))
     },
@@ -153,8 +150,7 @@ Kmeans <- R6Class("K-means",
     #' @return `clusters`: An integer vector indicating the cluster to which each point is allocated
     predict = function(X) {
 
-      # TODO: Mistakes are made here, points doesn't get assigned to the right cluster
-
+      X <- private$.perform_scale(X)
       K <- self$get.n_cluster()
       clusters <- private$.allocate(X, K=K, centers=private$.centers)
       W <- private$.compute_W(X, clusters=clusters, centers=private$.centers)
@@ -174,8 +170,10 @@ Kmeans <- R6Class("K-means",
     #' @param var2 A string representing the column name to display on y axis
     scatterplot = function(X, var1, var2) {
 
-      # convert to
+      # convert to a sequence
       cluster_colors <- as.numeric(private$.clusters[rownames(X)])
+      # unscale centers
+      centers <- private$.perform_unscale(private$.centers)
 
       plot(X[[var1]], X[[var2]],
          col = cluster_colors,
@@ -185,23 +183,15 @@ Kmeans <- R6Class("K-means",
          main = "K-means Clustering")
 
       # Add cluster centers to the plot
-      points(private$.centers[, var1], private$.centers[, var2],
+      points(centers[, var1], centers[, var2],
          col = 1:self$get.n_cluster(),
          pch = 4,
          cex = 2,
          lwd = 2)
-    },
-
-    test = function() {
-      return(list(
-        clusters=private$.clusters,
-        centers=private$.centers
-      ))
     }
   )
 
 )
-
 
 
 

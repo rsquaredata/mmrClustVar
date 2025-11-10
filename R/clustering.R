@@ -12,20 +12,30 @@ library(R6)
       .max_iter = NULL,
 
       # Util methods
-      .perform_scale = function(X) {
+      .perform_scale = function(X, set=FALSE) {
+
+        if(set) {
+          if(!is.null(private$.scale)) {
+            private$.scale <- apply(X, 2, sd, na.rm=TRUE)
+          }
+          if(!is.null(private$.center)) {
+            private$.center <- colMeans(X, na.rm=TRUE)
+          }
+        }
+
         X <- as.data.frame(scale(X, center=private$.center, scale=private$.scale))
         return(X)
       },
 
-      .perform_unscale = function(X, og_means, og_sds) {
+      .perform_unscale = function(X) {
 
         unscaled_X <- X
 
-        if (private$.scale) {
-          unscaled_X <- sweep(unscaled_X, 2, og_sds, `*`)
+        if (!is.null(private$.scale)) {
+          unscaled_X <- sweep(unscaled_X, 2, private$.scale, `*`)
         }
-        if (private$.center) {
-          unscaled_X <- sweep(unscaled_X, 2, og_means, `+`)
+        if (!is.null(private$.center)) {
+          unscaled_X <- sweep(unscaled_X, 2, private$.center, `+`)
         }
 
         return(unscaled_X)

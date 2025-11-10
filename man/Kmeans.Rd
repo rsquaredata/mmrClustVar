@@ -125,7 +125,7 @@ Draw a scatterplot highlighting the cluster groups on 2 variables of the data
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{A data.frame or matrix used for computing the culsters}
+\item{\code{X}}{A data.frame or matrix used for computing the clusters}
 
 \item{\code{var1}}{A string representing the column name to display on x axis}
 
