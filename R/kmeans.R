@@ -5,8 +5,9 @@ library(R6)
 #' @title K-means
 #' @description Implementation of the K-means clustering algorithm.
 #' @examples
-#' kmeans_model <- Kmeans$new(n_cluster=3)
+#' kmeans_model <- Kmeans$new(n_cluster=5)
 #' result <- kmeans_model$fit(mtcars)
+#' print(result$clusters)
 #' kmeans_model$scatterplot(mtcars, 'mpg', 'hp')
 Kmeans <- R6Class("K-means",
 
@@ -14,8 +15,8 @@ Kmeans <- R6Class("K-means",
 
   private = list(
 
-    .clusters = NULL,
     .centers = NULL,
+    .clusters = NULL,
 
     .stop_iter = function(clust_1, clust_2, iter) {
 
@@ -29,6 +30,15 @@ Kmeans <- R6Class("K-means",
       }
 
       return(FALSE)
+    },
+
+    .allocate = function(X, K, centers) {
+      # Compute distance to centroids
+      distance_matrix <- as.matrix(dist(rbind(centers, X), method="euclidean"))
+      distance_matrix <- distance_matrix[-(1:K), 1:K]
+      # Assign to cluster
+      cluster_assignment <- apply(distance_matrix, 1, which.min)
+      return(cluster_assignment)
     },
 
     .clusterize = function(X, n, K) {
@@ -45,9 +55,7 @@ Kmeans <- R6Class("K-means",
         previous_cluster_assignment <- cluster_assignment
         iter = iter+1
         # Allocation step
-        distance_matrix <- as.matrix(dist(rbind(centers, X), method="euclidean"))
-        distance_matrix <- distance_matrix[-(1:K), 1:K]
-        cluster_assignment <- apply(distance_matrix, 1, which.min)
+        cluster_assignment <- private$.allocate(X, K=K, centers=centers)
         # Recalculate centers
         for (g in 1:K) {
           if (sum(cluster_assignment == g) > 0) {
@@ -97,10 +105,7 @@ Kmeans <- R6Class("K-means",
         return(NULL)
       }
 
-      .og_means <- colMeans(X)
-      .og_sds <- apply(X, 2, sd)
-
-      X <- self$scale(X) # center and scale X if `center` and `scale` == TRUE
+      X <- private$.perform_scale(X, set=TRUE) # center and scale X if `center` and `scale` == TRUE
       n <- nrow(X)
       K <- self$get.n_cluster()
 
@@ -110,7 +115,7 @@ Kmeans <- R6Class("K-means",
 
         compute.W_for_k <- function(k) {
           result <- private$.clusterize(X, n, k)
-          W <- self$compute.W(X, clusters=result$clusters, centers=result$centers)
+          W <- private$.compute_W(X, clusters=result$clusters, centers=result$centers)
           return(W)
         }
 
@@ -118,44 +123,67 @@ Kmeans <- R6Class("K-means",
         K_values <- 2:15
         W_values <- sapply(K_values, compute.W_for_k)
         # Find curve elbow (best result)
-        print(W_values)
-        elbow_index <- self$find.elbow(K_values, W_values, plot=TRUE, plot_axis=c("K", "W score"))
+        elbow_index <- private$.find_elbow(K_values, W_values, plot=TRUE, plot_axis=c("K", "W score"))
         K <- K_values[elbow_index]
         self$set.n_cluster(K)
       }
 
       # Compute cluster and W score
       result <- private$.clusterize(X, n, K)
-      W <- self$compute.W(X, clusters=result$clusters, centers=result$centers)
-      # Sets private atttibutes
+      W <- private$.compute_W(X, clusters=result$clusters, centers=result$centers)
+      # Save private attributes
       private$.clusters <- result$clusters
-      private$.centers <- self$unscale(result$centers, og_means=.og_means, og_sds=.og_sds)
+      private$.centers <- result$centers
 
       # TODO: compute "proportion de variance expliquée par le partitionnement" for each group
 
       return(list(
         clusters = private$.clusters,
-        centers = private$.centers,
+        centers = private$.perform_unscale(result$centers),
         W = W
       ))
     },
 
     #' @description
+    #' Predict the cluster group for each observation of the data
+    #' @param X A data.frame or matrix on which to predict cluster groups
+    #' @return `clusters`: An integer vector indicating the cluster to which each point is allocated
+    predict = function(X) {
+
+      X <- private$.perform_scale(X)
+      K <- self$get.n_cluster()
+      clusters <- private$.allocate(X, K=K, centers=private$.centers)
+      W <- private$.compute_W(X, clusters=clusters, centers=private$.centers)
+
+      private$.clusters <- c(private$.clusters, clusters)
+
+      return(list(
+        clusters=clusters,
+        W=W
+      ))
+    },
+
+    #' @description
     #' Draw a scatterplot highlighting the cluster groups on 2 variables of the data
-    #' @param X A data.frame or matrix used for computing the culsters
+    #' @param X A data.frame or matrix used for computing the clusters
     #' @param var1 A string representing the column name to display on x axis
     #' @param var2 A string representing the column name to display on y axis
     scatterplot = function(X, var1, var2) {
 
+      # convert to a sequence
+      cluster_colors <- as.numeric(private$.clusters[rownames(X)])
+      # unscale centers
+      centers <- private$.perform_unscale(private$.centers)
+
       plot(X[[var1]], X[[var2]],
-         col = private$.clusters,
+         col = cluster_colors,
          pch = 19,
          xlab = var1,
          ylab = var2,
          main = "K-means Clustering")
 
       # Add cluster centers to the plot
-      points(private$.centers[, var1], private$.centers[, var2],
+      points(centers[, var1], centers[, var2],
          col = 1:self$get.n_cluster(),
          pch = 4,
          cex = 2,

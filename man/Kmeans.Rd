@@ -2,13 +2,14 @@
 % Please edit documentation in R/kmeans.R
 \name{Kmeans}
 \alias{Kmeans}
-\title{Kmeans}
+\title{K-means}
 \description{
 Implementation of the K-means clustering algorithm.
 }
 \examples{
-kmeans_model <- Kmeans$new(n_cluster=3)
+kmeans_model <- Kmeans$new(n_cluster=5)
 result <- kmeans_model$fit(mtcars)
+print(result$clusters)
 kmeans_model$scatterplot(mtcars, 'mpg', 'hp')
 }
 \section{Super class}{
@@ -19,21 +20,17 @@ kmeans_model$scatterplot(mtcars, 'mpg', 'hp')
 \itemize{
 \item \href{#method-K-means-new}{\code{Kmeans$new()}}
 \item \href{#method-K-means-fit}{\code{Kmeans$fit()}}
+\item \href{#method-K-means-predict}{\code{Kmeans$predict()}}
 \item \href{#method-K-means-scatterplot}{\code{Kmeans$scatterplot()}}
 \item \href{#method-K-means-clone}{\code{Kmeans$clone()}}
 }
 }
 \if{html}{\out{
-<details><summary>Inherited methods</summary>
+<details open><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="compute.W"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-compute.W'><code>mmrClutVar::Clustering$compute.W()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="find.elbow"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-find.elbow'><code>mmrClutVar::Clustering$find.elbow()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="get.max_iter"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-get.max_iter'><code>mmrClutVar::Clustering$get.max_iter()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="get.n_cluster"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-get.n_cluster'><code>mmrClutVar::Clustering$get.n_cluster()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="predict"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-predict'><code>mmrClutVar::Clustering$predict()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="scale"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-scale'><code>mmrClutVar::Clustering$scale()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="set.n_cluster"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-set.n_cluster'><code>mmrClutVar::Clustering$set.n_cluster()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="unscale"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-unscale'><code>mmrClutVar::Clustering$unscale()</code></a></span></li>
 </ul>
 </details>
 }}
@@ -97,6 +94,26 @@ A list containing the following components:
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-K-means-predict"></a>}}
+\if{latex}{\out{\hypertarget{method-K-means-predict}{}}}
+\subsection{Method \code{predict()}}{
+Predict the cluster group for each observation of the data
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Kmeans$predict(X)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{X}}{A data.frame or matrix on which to predict cluster groups}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+\code{clusters}: An integer vector indicating the cluster to which each point is allocated
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-K-means-scatterplot"></a>}}
 \if{latex}{\out{\hypertarget{method-K-means-scatterplot}{}}}
 \subsection{Method \code{scatterplot()}}{
@@ -108,7 +125,7 @@ Draw a scatterplot highlighting the cluster groups on 2 variables of the data
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{A data.frame or matrix used for computing the culsters}
+\item{\code{X}}{A data.frame or matrix used for computing the clusters}
 
 \item{\code{var1}}{A string representing the column name to display on x axis}
 
