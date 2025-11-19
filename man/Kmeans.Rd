@@ -28,6 +28,7 @@ kmeans_model$scatterplot(mtcars, 'mpg', 'hp')
 \if{html}{\out{
 <details open><summary>Inherited methods</summary>
 <ul>
+<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="get.latent"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-get.latent'><code>mmrClutVar::Clustering$get.latent()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="get.max_iter"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-get.max_iter'><code>mmrClutVar::Clustering$get.max_iter()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="get.n_cluster"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-get.n_cluster'><code>mmrClutVar::Clustering$get.n_cluster()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="set.n_cluster"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-set.n_cluster'><code>mmrClutVar::Clustering$set.n_cluster()</code></a></span></li>
@@ -119,13 +120,13 @@ Predict the cluster group for each observation of the data
 \subsection{Method \code{scatterplot()}}{
 Draw a scatterplot highlighting the cluster groups on 2 variables of the data
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Kmeans$scatterplot(X, var1, var2)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Kmeans$scatterplot(X = NULL, var1, var2)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{A data.frame or matrix used for computing the clusters}
+\item{\code{X}}{A data.frame or matrix used for computing the clusters (use train data if NULL)}
 
 \item{\code{var1}}{A string representing the column name to display on x axis}
 

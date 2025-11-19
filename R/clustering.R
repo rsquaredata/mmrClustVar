@@ -42,17 +42,32 @@ library(R6)
       },
 
       .compute_W = function(X, clusters, centers) {
+        if (!is.matrix(X)) {
+          X <- as.matrix(X)
+        }
+
+        n_vars <- ncol(X)
+        if (length(clusters) != n_vars) {
+          stop("`clusters` must have the same length as the number of variables in `X`.")
+        }
+
+        K <- ncol(centers)
+        if (is.null(K) || K == 0L) {
+          stop("`centers` must have at least one column.")
+        }
 
         W <- 0
-        K <- nrow(centers)
-
         for (g in 1:K) {
-          cluster_points <- X[clusters == g, ]
-          if (nrow(cluster_points) > 0) {
-            # For each point, compute the squared distance to the cluster center
-            distances <- sweep(as.matrix(cluster_points), 2, as.matrix(centers[g, ]), `-`)
-            W <- W + sum(distances^2)
-          }
+          idx <- which(clusters == g)
+          if (length(idx) == 0L) next
+
+          cluster_vars <- X[, idx, drop=FALSE]
+          center_vec  <- centers[, g]
+
+          if (all(is.na(center_vec))) next
+
+          distances <- sweep(cluster_vars, 1, center_vec, FUN="-")
+          W <- W + sum(distances^2, na.rm=TRUE)
         }
 
         return(W)
@@ -75,16 +90,63 @@ library(R6)
 
         # Plot curve if `plot` == TRUE
         if(plot) {
-          plot(x, y, type = "b", pch = 19, col = "blue",
-               main = "Elbow Plot", xlab = "K", ylab = "W score")
-          points(x[elbow_index], y[elbow_index], col = "red", pch = 19, cex = 1.5)
-          abline(a = intercept, b = slope, lty = 2)
-          legend("topright", legend = c("Data points", "Elbow point", "Fitted line"),
-                 col = c("blue", "red", "black"), pch = c(19, 19, NA),
-                 lty = c(0, 0, 2), cex = 0.8)
+          plot(x, y, type="b", pch=19, col="blue", main="Elbow Plot", xlab=plot_axis[1], ylab=plot_axis[2])
+          points(x[elbow_index], y[elbow_index], col="red", pch=19, cex=1.5)
+          abline(a=intercept, b=slope, lty=2)
+          legend("topright", legend=c("Data points", "Elbow point", "Fitted line"), col=c("blue", "red", "black"), pch=c(19, 19, NA), lty=c(0, 0, 2), cex=0.8)
         }
 
         return(elbow_index)
+      },
+
+      .silhouette = function(X, clusters, squared=TRUE, use_abs=TRUE) {
+        X <- as.matrix(X)
+        n_vars <- ncol(X)
+        if (length(clusters) != n_vars) {
+          stop("`clusters` must have the same length as the number of variables in `X`.")
+        }
+
+        # similarity = |cor| or cor, optionally squared
+        corr <- cor(X, use = "pairwise.complete.obs")
+        if (use_abs) corr <- abs(corr)
+        if (squared) corr <- corr^2
+
+        # convert to dissimilarity
+        diss <- 1 - corr
+        diag(diss) <- 0
+
+        uniq_clusters <- sort(unique(clusters))
+        sil <- numeric(n_vars)
+
+        for (i in seq_len(n_vars)) {
+          k_i <- clusters[i]
+
+          # average dissimilarity within the same cluster
+          same_idx <- which(clusters == k_i & seq_len(n_vars) != i)
+          a_i <- if (length(same_idx) == 0L) 0 else mean(diss[i, same_idx])
+
+          # minimum average dissimilarity to other clusters
+          b_i <- Inf
+          for (k in uniq_clusters[uniq_clusters != k_i]) {
+            other_idx <- which(clusters == k)
+            if (length(other_idx) == 0L) next
+            b_i <- min(b_i, mean(diss[i, other_idx]))
+          }
+          if (!is.finite(b_i)) b_i <- 0
+
+          denom <- max(a_i, b_i)
+          sil[i] <- if (denom == 0) 0 else (b_i - a_i) / denom
+        }
+
+        return(list(
+          per_variable = data.frame(
+            variable = colnames(X),
+            cluster = clusters,
+            silhouette = sil,
+            row.names = NULL
+          ),
+          mean = mean(sil)
+        ))
       }
     ),
 
