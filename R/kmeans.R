@@ -212,8 +212,9 @@ Kmeans <- R6Class("K-means",
           theme_minimal()
       },
 
-      silhouette = function() {
-        private$.silhouette(private$.X, private$.clusters)
+      # Getters
+      get_clusters = function() {
+        return(private$.clusters)
       }
     )
 
