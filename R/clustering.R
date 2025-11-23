@@ -7,37 +7,26 @@ library(R6)
 
       # Attributes
       .n_cluster = NULL,
-      .center = NULL,
-      .scale = NULL,
+      .center = TRUE,
+      .scale = TRUE,
       .max_iter = NULL,
 
       # Util methods
       .perform_scale = function(X, set=FALSE) {
 
         if(set) {
-          if(!is.null(private$.scale)) {
-            private$.scale <- apply(X, 2, sd, na.rm=TRUE)
-          }
-          if(!is.null(private$.center)) {
-            private$.center <- colMeans(X, na.rm=TRUE)
-          }
+          X <- as.data.frame(scale(X, center=TRUE, scale=TRUE))
+          private$.scale <- attr(scaled, "scaled:scale")
+          private$.center <- attr(scaled, "scaled:center")
+        } else {
+          X <- as.data.frame(scale(X, center=TRUE, scale=TRUE))
         }
 
-        X <- as.data.frame(scale(X, center=private$.center, scale=private$.scale))
         return(X)
       },
 
       .perform_unscale = function(X) {
-
-        unscaled_X <- X
-
-        if (!is.null(private$.scale)) {
-          unscaled_X <- sweep(unscaled_X, 2, private$.scale, `*`)
-        }
-        if (!is.null(private$.center)) {
-          unscaled_X <- sweep(unscaled_X, 2, private$.center, `+`)
-        }
-
+        X <- as.data.frame(scale(X, center=private$.center, scale=private$.scale))
         return(unscaled_X)
       },
 
@@ -153,26 +142,18 @@ library(R6)
     public = list(
 
       # Init
-      initialize = function(n_cluster, center, scale, max_iter, seed) {
+      initialize = function(n_cluster, max_iter, seed) {
         private$.n_cluster <- n_cluster
-        private$.center <- center
-        private$.scale <- scale
         private$.max_iter <- max_iter
         set.seed(seed) # set random seed
       },
 
       # Getter methods
-      get.n_cluster = function() {
-        return(private$.n_cluster)
-      },
-      get.max_iter = function() {
-        return(private$.max_iter)
-      },
+      get.n_cluster = function() return(private$.n_cluster),
+      get.max_iter = function() return(private$.max_iter),
 
       # Setter methods
-      set.n_cluster = function(K) {
-        private$.n_cluster <- K
-      },
+      set.n_cluster = function(K) private$.n_cluster <- K,
 
       # Abstract methods
       fit = function() {

@@ -1,5 +1,4 @@
 library(R6)
-library(ggplot2)
 
 
 #' @export
@@ -15,13 +14,14 @@ Kmeans <- R6Class("K-means",
 
     private = list(
 
-      .X = NULL,
-      .centers = NULL,
-      .clusters = NULL,
+      .X        = NULL, # scaled input matrix
+      .centers  = NULL, # cluster centroids
+      .clusters = NULL, # cluster assignments
 
       .stop_iter = function(clust_1, clust_2, iter) {
         max_iter <- self$get.max_iter()
         if (iter > max_iter) {
+          warning("Maximum iteration limit reached; you can set the limit with the `max_iter` parameter.")
           return(TRUE)
         }
         return(identical(clust_1, clust_2))
@@ -113,7 +113,7 @@ Kmeans <- R6Class("K-means",
           }
 
           cluster_assignment <- private$.allocate(X, n, K, centers)
-          cluster_assignment <- private$.ensure_non_empty_clusters(cluster_assignment, K)
+          #cluster_assignment <- private$.ensure_non_empty_clusters(cluster_assignment, K)
           iter <- iter + 1L
         }
 
@@ -133,8 +133,8 @@ Kmeans <- R6Class("K-means",
       #' @param scale A logical indicating whether to scale the data (default is `TRUE`).
       #' @param max_iter An integer specifying the maximum number of iterations for the K-means algorithm (default is 300).
       #' @param random_seed An optional integer to set the random seed for reproducibility.
-      initialize = function(n_cluster=NULL, center=TRUE, scale=TRUE, max_iter=300, random_seed=NULL) {
-        super$initialize(n_cluster=n_cluster, center=center, scale=scale, max_iter=300, seed=random_seed)
+      initialize = function(n_cluster=NULL, max_iter=300, random_seed=NULL) {
+        super$initialize(n_cluster=n_cluster, max_iter=max_iter, seed=random_seed)
       },
 
       #' @description
@@ -177,6 +177,7 @@ Kmeans <- R6Class("K-means",
           elbow_index <- private$.find_elbow(K_values, W_values, plot=TRUE, plot_axis=c("K", "W score"))
           K <- K_values[elbow_index]
           self$set.n_cluster(K)
+          message("Set K to ", K)
         }
 
         result <- private$.clusterize(X, n, K)
@@ -186,11 +187,48 @@ Kmeans <- R6Class("K-means",
         private$.centers <- result$centers
         private$.X <- X
 
+        # TODO: return clusters as data.frame (variable name as column name, cluster assignment as value)
+
         return(list(
           clusters = private$.clusters,
           centers = result$centers,
           W = W
         ))
+      },
+
+      #' @description
+      #' Assigne de nouvelles variables (descriptives) aux clusters appris.
+      #' @param X Matrice ou data.frame numérique contenant les variables à projeter.
+      #' @return Un vecteur entier indiquant, pour chaque variable fournie,
+      #'         l'indice du cluster auquel elle est affectée.
+      predict = function(X) {
+        if (is.null(private$.centers)) {
+          stop("You must create clusters with `fit()` before predicting cluster assignment.")
+        }
+        if (!is.data.frame(X) && !is.matrix(X)) {
+          stop("Wrong type for `X`. Expected data.frame or matrix.")
+        }
+        if (!is.numeric(as.matrix(X))) {
+          stop("Non numeric values found in `X`, expected numeric only.")
+        }
+
+        n <- ncol(X)
+        K <- self$get.n_cluster()
+
+        assignments <- private$.allocate(X=X, n=n, K=K, centroids=private$.centers, square=TRUE)
+
+        if (!is.null(colnames(X))) {
+          names(assignments) <- colnames(X)
+        }
+
+        # Append new assignments to the .clusters object
+        private$.clusters <- c(private$.clusters, unname(assignments))
+        # Append descriptive values to the .X object
+        private$.X <- cbind(private$.X, X) # feels so wrong to do so...
+
+        # TODO: fix scaling issue
+
+        return(assignments)
       },
 
       #' @description
@@ -202,20 +240,19 @@ Kmeans <- R6Class("K-means",
         loadings$variable <- colnames(private$.X)
         loadings$cluster <- factor(private$.clusters)
 
-        ggplot(loadings, aes(x=Comp.1, y=Comp.2, label=variable, color=cluster)) +
-          geom_hline(yintercept=0, linetype="dashed", color="grey70") +
-          geom_vline(xintercept=0, linetype="dashed", color="grey70") +
-          geom_segment(aes(x=0, y=0, xend=Comp.1, yend=Comp.2), arrow=arrow(length=unit(0.15, "cm")), show.legend=FALSE, alpha=0.5) +
-          geom_point(size=2) +
-          geom_text(aes(x=1.1*Comp.1, y=1.1*Comp.2, label=variable, color=cluster), size=3) +
-          labs(title = "Variable clusters on PCA plane", x="Comp.1", y="Comp.2") +
-          theme_minimal()
+        ggplot2::ggplot(loadings, ggplot2::aes(x=Comp.1, y=Comp.2, label=variable, color=cluster)) +
+          ggplot2::geom_hline(yintercept=0, linetype="dashed", color="grey70") +
+          ggplot2::geom_vline(xintercept=0, linetype="dashed", color="grey70") +
+          ggplot2::geom_segment(ggplot2::aes(x=0, y=0, xend=Comp.1, yend=Comp.2), arrow=ggplot2::arrow(length=ggplot2::unit(0.15, "cm")), show.legend=FALSE, alpha=0.5) +
+          ggplot2::geom_point(size=2) +
+          ggplot2::geom_text(ggplot2::aes(x=1.1*Comp.1, y=1.1*Comp.2, label=variable, color=cluster), size=3) +
+          ggplot2::labs(title = "Variable clusters on PCA plane", x="Comp.1", y="Comp.2") +
+          ggplot2::theme_minimal()
       },
 
       # Getters
-      get_clusters = function() {
-        return(private$.clusters)
-      }
+      get.clusters = function() return(private$.clusters),
+      get.center = function() return(private$.centers)
     )
 
 )
