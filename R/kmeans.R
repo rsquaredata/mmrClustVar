@@ -14,10 +14,6 @@ Kmeans <- R6Class("K-means",
 
     private = list(
 
-      .X        = NULL, # scaled input matrix
-      .centers  = NULL, # cluster centroids
-      .clusters = NULL, # cluster assignments
-
       .stop_iter = function(clust_1, clust_2, iter) {
         max_iter <- self$get.max_iter()
         if (iter > max_iter) {
@@ -54,32 +50,17 @@ Kmeans <- R6Class("K-means",
         return(centers)
       },
 
-      .allocate = function(X, n, K, centroids, square=TRUE) {
+      .allocate = function(X, n, K, centroids) {
         scores <- matrix(-Inf, nrow=n, ncol=K)
         for (k in 1:K) {
           centroid <- centroids[, k]
           if (all(is.na(centroid))) next
-          corr_vec <- cor(X, centroid, use="pairwise.complete.obs")
-          if (square) corr_vec <- corr_vec^2
+          corr_vec <- cor(X, centroid, use="pairwise.complete.obs")^2
           scores[, k] <- corr_vec
         }
-        return(max.col(scores, ties.method="random"))
-      },
-
-      .ensure_non_empty_clusters = function(assignments, K) {
-        tab <- tabulate(assignments, nbins=K)
-        empty <- which(tab == 0L)
-        if (length(empty) == 0L) return(assignments)
-
-        for (k in empty) {
-          donor <- which.max(tab)
-          donor_idx <- which(assignments == donor)
-          move <- sample(donor_idx, 1L)
-          assignments[move] <- k
-          tab[donor] <- tab[donor] - 1L
-          tab[k] <- 1L
-        }
-        return(assignments)
+        return(
+          unname(max.col(scores, ties.method="random"))
+          )
       },
 
       .clusterize = function(X, n, K) {
@@ -103,17 +84,17 @@ Kmeans <- R6Class("K-means",
 
           centers <- private$.compute_centers(X, cluster_assignment, K)
 
+          # TODO: why that?
           # if some centers are NA (empty cluster), re-init with random variable
           na_centers <- which(apply(centers, 2, function(col) all(is.na(col))))
           if (length(na_centers) > 0L) {
             for (k in na_centers) {
               j <- sample(1:n, 1L)
-              centers[, k] <- as.numeric(scale(X[, j], center = TRUE, scale = TRUE))
+              centers[, k] <- as.numeric(scale(X[, j], center=TRUE, scale=TRUE))
             }
           }
 
           cluster_assignment <- private$.allocate(X, n, K, centers)
-          #cluster_assignment <- private$.ensure_non_empty_clusters(cluster_assignment, K)
           iter <- iter + 1L
         }
 
@@ -129,8 +110,6 @@ Kmeans <- R6Class("K-means",
       #' @description
       #' Create a new K-means object.
       #' @param n_cluster An optional integer specifying the number of clusters. If `NULL`, the model will determine the optimal number of clusters.
-      #' @param center A logical indicating whether to center the data (default is `TRUE`).
-      #' @param scale A logical indicating whether to scale the data (default is `TRUE`).
       #' @param max_iter An integer specifying the maximum number of iterations for the K-means algorithm (default is 300).
       #' @param random_seed An optional integer to set the random seed for reproducibility.
       initialize = function(n_cluster=NULL, max_iter=300, random_seed=NULL) {
@@ -139,12 +118,13 @@ Kmeans <- R6Class("K-means",
 
       #' @description
       #' Fits the K-means model to data, automatically finding the best K if not provided
-      #' @param X A data.frame or matrix on which to perform clustering
+      #' @param X a data.frame or matrix of actives variables to compute clusters
       #' @return A list containing the following components:
       #' - `clusters`: An integer vector indicating the cluster to which each point is allocated.
       #' - `centers`: A matrix with the coordinates of cluster centers.
       #' - `W`: The within-cluster sum of squares for the fitted clusters.
       fit = function(X) {
+
         if (!is.data.frame(X) && !is.matrix(X)) {
           stop("Wrong type for `X`. Expected data.frame or matrix.")
         }
@@ -152,7 +132,7 @@ Kmeans <- R6Class("K-means",
           stop("Non numeric values found in `X`, expected numeric only.")
         }
 
-        X <- private$.perform_scale(X, set=TRUE)
+        X <- scale(X, center=TRUE, scale=TRUE)
         n <- ncol(X)
         K <- self$get.n_cluster()
 
@@ -172,8 +152,8 @@ Kmeans <- R6Class("K-means",
 
           K_values <- 2:min(ncol(X), 10)
           W_values <- sapply(K_values, compute.W_for_k)
-
           #silhouette_values <- sapply(K_values, compute.silhouette_for_K)
+
           elbow_index <- private$.find_elbow(K_values, W_values, plot=TRUE, plot_axis=c("K", "W score"))
           K <- K_values[elbow_index]
           self$set.n_cluster(K)
@@ -183,9 +163,9 @@ Kmeans <- R6Class("K-means",
         result <- private$.clusterize(X, n, K)
         W <- private$.compute_W(X, clusters=result$clusters, centers=result$centers)
 
+        private$.X <- X
         private$.clusters <- result$clusters
         private$.centers <- result$centers
-        private$.X <- X
 
         # TODO: return clusters as data.frame (variable name as column name, cluster assignment as value)
 
@@ -197,36 +177,33 @@ Kmeans <- R6Class("K-means",
       },
 
       #' @description
-      #' Assigne de nouvelles variables (descriptives) aux clusters appris.
-      #' @param X Matrice ou data.frame numérique contenant les variables à projeter.
-      #' @return Un vecteur entier indiquant, pour chaque variable fournie,
-      #'         l'indice du cluster auquel elle est affectée.
-      predict = function(X) {
+      #' Assign descriptive variables to clusters
+      #' @param descriptives A data.frame or matrix of descriptive variables to assign to cluster.
+      #' @return An integer vector indicating, for each provided variable,
+      #'         the index of the cluster to which it is assigned.
+      predict = function(descriptives) {
+
         if (is.null(private$.centers)) {
-          stop("You must create clusters with `fit()` before predicting cluster assignment.")
-        }
-        if (!is.data.frame(X) && !is.matrix(X)) {
-          stop("Wrong type for `X`. Expected data.frame or matrix.")
-        }
-        if (!is.numeric(as.matrix(X))) {
-          stop("Non numeric values found in `X`, expected numeric only.")
+          stop("You must create clusters with `fit()` before predicting cluster assignments.")
         }
 
+        if (!is.data.frame(descriptives) && !is.matrix(descriptives)) {
+          stop("Wrong type for `descriptives`. Expected data.frame or matrix.")
+        }
+        if (!is.numeric(as.matrix(descriptives))) {
+          stop("Non numeric values found in `descriptives`, expected numeric only.")
+        }
+
+        X <- descriptives
         n <- ncol(X)
         K <- self$get.n_cluster()
 
         assignments <- private$.allocate(X=X, n=n, K=K, centroids=private$.centers, square=TRUE)
 
-        if (!is.null(colnames(X))) {
-          names(assignments) <- colnames(X)
-        }
-
         # Append new assignments to the .clusters object
-        private$.clusters <- c(private$.clusters, unname(assignments))
+        private$.clusters <- c(private$.clusters, assignments)
         # Append descriptive values to the .X object
-        private$.X <- cbind(private$.X, X) # feels so wrong to do so...
-
-        # TODO: fix scaling issue
+        private$.X <- cbind(private$.X, X)
 
         return(assignments)
       },

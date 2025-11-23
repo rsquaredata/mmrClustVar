@@ -6,30 +6,14 @@ library(R6)
     private = list(
 
       # Attributes
-      .n_cluster = NULL,
-      .center = TRUE,
-      .scale = TRUE,
-      .max_iter = NULL,
+      .X = NULL,            # active data
+      .descriptives = NULL, # descriptive data
+      .n_cluster = NULL,    # number of clusters
+      .max_iter = NULL,     # maximum iteration
+      .centers  = NULL,     # cluster centroids
+      .clusters = NULL,     # cluster assignments
 
       # Util methods
-      .perform_scale = function(X, set=FALSE) {
-
-        if(set) {
-          X <- as.data.frame(scale(X, center=TRUE, scale=TRUE))
-          private$.scale <- attr(scaled, "scaled:scale")
-          private$.center <- attr(scaled, "scaled:center")
-        } else {
-          X <- as.data.frame(scale(X, center=TRUE, scale=TRUE))
-        }
-
-        return(X)
-      },
-
-      .perform_unscale = function(X) {
-        X <- as.data.frame(scale(X, center=private$.center, scale=private$.scale))
-        return(unscaled_X)
-      },
-
       .compute_W = function(X, clusters, centers) {
         if (!is.matrix(X)) {
           X <- as.matrix(X)
