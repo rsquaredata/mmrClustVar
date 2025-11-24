@@ -1,17 +1,18 @@
 library(R6)
 
 
-.Clustering <- R6Class("Clustering",
+.Cluster <- R6Class("Cluster",
 
     private = list(
 
       # Attributes
       .X = NULL,            # active data
       .descriptives = NULL, # descriptive data
-      .n_cluster = NULL,    # number of clusters
-      .max_iter = NULL,     # maximum iteration
       .centers  = NULL,     # cluster centroids
       .clusters = NULL,     # cluster assignments
+      .predicts = NULL,     # predicted cluster assignments
+      .n_cluster = NULL,    # number of clusters
+      .max_iter = NULL,     # maximum iteration
 
       # Util methods
       .compute_W = function(X, clusters, centers) {
@@ -131,13 +132,6 @@ library(R6)
         private$.max_iter <- max_iter
         set.seed(seed) # set random seed
       },
-
-      # Getter methods
-      get.n_cluster = function() return(private$.n_cluster),
-      get.max_iter = function() return(private$.max_iter),
-
-      # Setter methods
-      set.n_cluster = function(K) private$.n_cluster <- K,
 
       # Abstract methods
       fit = function() {

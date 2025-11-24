@@ -5,12 +5,14 @@ library(R6)
 #' @title K-means
 #' @description Implementation of the K-means variable clustering algorithm.
 #' @examples
-#' kmeans_model <- Kmeans$new(n_cluster=5)
-#' result <- kmeans_model$fit(mtcars)
-#' print(result$clusters)
+#' active.idx <- c(1, 2, 3, 4, 5)
+#' descriptive.idx <- c(6, 7, 8, 9, 10)
+#' model <- Kmeans$new(n_cluster=3)
+#' model$fit(mtcars[, actives.idx])
+#' kmeans$predict(mtcars[, descriptive.idx])
 Kmeans <- R6Class("K-means",
 
-    inherit = .Clustering,
+    inherit = .Cluster,
 
     private = list(
 
@@ -25,11 +27,11 @@ Kmeans <- R6Class("K-means",
 
       .latent_center = function(X_subset) {
         # compute first latent component of a cluster (first PC score)
-        if (ncol(X_subset) == 1L) {
-          center <- as.numeric(scale(X_subset[, 1], center=TRUE, scale=TRUE))
+        if (ncol(X_subset) == 1) {
+          center <- as.numeric(X_subset[, 1])
         } else {
-          pca <- prcomp(X_subset, center=FALSE, scale.=FALSE, rank.=1L)
-          center <- as.numeric(scale(pca$x[, 1], center=TRUE, scale=TRUE))
+          pca <- prcomp(X_subset, center=FALSE, scale.=FALSE, rank.=1)
+          center <- as.numeric(pca$x[, 1])
         }
         if (anyNA(center) || sd(center, na.rm=TRUE) == 0) {
           center <- rep(0, nrow(X_subset))
@@ -75,29 +77,15 @@ Kmeans <- R6Class("K-means",
         centers <- matrix(centers, nrow=n_obs, ncol=K)
 
         cluster_assignment <- private$.allocate(X, n, K, centers)
-        #cluster_assignment <- private$.ensure_non_empty_clusters(cluster_assignment, K)
 
         previous_cluster_assignment <- rep(NA_integer_, n)
-        iter <- 1L
+        iter <- 1
 
         while (!private$.stop_iter(cluster_assignment, previous_cluster_assignment, iter)) {
           previous_cluster_assignment <- cluster_assignment
-
-
           centers <- private$.compute_centers(X, cluster_assignment, K)
-
-          # TODO: why that?
-          # if some centers are NA (empty cluster), re-init with random variable
-          na_centers <- which(apply(centers, 2, function(col) all(is.na(col))))
-          if (length(na_centers) > 0L) {
-            for (k in na_centers) {
-              j <- sample(1:n, 1L)
-              centers[, k] <- as.numeric(scale(X[, j], center=TRUE, scale=TRUE))
-            }
-          }
-
           cluster_assignment <- private$.allocate(X, n, K, centers)
-          iter <- iter + 1L
+          iter <- iter + 1
         }
 
         return(list(
@@ -166,7 +154,10 @@ Kmeans <- R6Class("K-means",
         W <- private$.compute_W(X, clusters=result$clusters, centers=result$centers)
 
         private$.X <- X
-        private$.clusters <- result$clusters
+        private$.clusters <- data.frame(
+          cluster=result$clusters,
+          row.names=colnames(X)
+        )
         private$.centers <- result$centers
 
         # TODO: return clusters as data.frame (variable name as column name, cluster assignment as value)
@@ -195,18 +186,23 @@ Kmeans <- R6Class("K-means",
           stop("Non numeric values found in `descriptives`, expected numeric only.")
         }
 
-        X <- descriptives
-        n <- ncol(X)
+        n <- ncol(descriptives)
         K <- self$get.n_cluster()
 
-        assignments <- private$.allocate(X=X, n=n, K=K, centroids=private$.centers, square=TRUE)
+        assignments <- private$.allocate(X=descriptives, n=n, K=K, centroids=private$.centers)
 
-        # Append new assignments to the .clusters object
-        private$.clusters <- c(private$.clusters, assignments)
         # Append descriptive values to the .X object
-        private$.X <- cbind(private$.X, X)
+        private$.descriptives <- descriptives
+        # Saves predicted clusters
+        private$.predicts <- data.frame(
+          cluster=assignments,
+          row.names=colnames(descriptives)
+        )
 
-        return(assignments)
+        return(data.frame(
+          cluster=assignments,
+          row.names=colnames(descriptives)
+        ))
       },
 
       #' @description
@@ -216,7 +212,7 @@ Kmeans <- R6Class("K-means",
         loadings <- as.data.frame(pca$rotation[, 1:2])
         colnames(loadings) <- c("Comp.1", "Comp.2")
         loadings$variable <- colnames(private$.X)
-        loadings$cluster <- factor(private$.clusters)
+        loadings$cluster <- factor(private$.clusters[,1])
 
         ggplot2::ggplot(loadings, ggplot2::aes(x=Comp.1, y=Comp.2, label=variable, color=cluster)) +
           ggplot2::geom_hline(yintercept=0, linetype="dashed", color="grey70") +
@@ -229,9 +225,14 @@ Kmeans <- R6Class("K-means",
       },
 
       # Getters
+
+      #' @description
+      #' Get active variables cluster assignments
       get.clusters = function() return(private$.clusters),
-      get.center = function() return(private$.centers)
+
+      #' @description
+      #' Get predicted descriptive cluster assignments
+      get.predicts = function() return(private$.predicts)
     )
 
 )
-

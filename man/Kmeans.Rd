@@ -7,31 +7,33 @@
 Implementation of the K-means variable clustering algorithm.
 }
 \examples{
-kmeans_model <- Kmeans$new(n_cluster=5)
-result <- kmeans_model$fit(mtcars)
-print(result$clusters)
+active.idx <- c(1, 2, 3, 4, 5)
+descriptive.idx <- c(6, 7, 8, 9, 10)
+model <- Kmeans$new(n_cluster=3)
+model$fit(mtcars[, actives.idx])
+kmeans$predict(mtcars[, descriptive.idx])
 }
 \section{Super class}{
-\code{mmrClutVar::Clustering} -> \code{K-means}
+\code{mmrClutVar::Cluster} -> \code{K-means}
 }
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-K-means-new}{\code{Kmeans$new()}}
 \item \href{#method-K-means-fit}{\code{Kmeans$fit()}}
+\item \href{#method-K-means-predict}{\code{Kmeans$predict()}}
 \item \href{#method-K-means-visualize}{\code{Kmeans$visualize()}}
 \item \href{#method-K-means-get.clusters}{\code{Kmeans$get.clusters()}}
-\item \href{#method-K-means-get.center}{\code{Kmeans$get.center()}}
+\item \href{#method-K-means-get.predicts}{\code{Kmeans$get.predicts()}}
 \item \href{#method-K-means-clone}{\code{Kmeans$clone()}}
 }
 }
 \if{html}{\out{
 <details open><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="get.max_iter"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-get.max_iter'><code>mmrClutVar::Clustering$get.max_iter()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="get.n_cluster"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-get.n_cluster'><code>mmrClutVar::Clustering$get.n_cluster()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="predict"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-predict'><code>mmrClutVar::Clustering$predict()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Clustering" data-id="set.n_cluster"><a href='../../mmrClutVar/html/Clustering.html#method-Clustering-set.n_cluster'><code>mmrClutVar::Clustering$set.n_cluster()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Cluster" data-id="get.max_iter"><a href='../../mmrClutVar/html/Cluster.html#method-Cluster-get.max_iter'><code>mmrClutVar::Cluster$get.max_iter()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Cluster" data-id="get.n_cluster"><a href='../../mmrClutVar/html/Cluster.html#method-Cluster-get.n_cluster'><code>mmrClutVar::Cluster$get.n_cluster()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Cluster" data-id="set.n_cluster"><a href='../../mmrClutVar/html/Cluster.html#method-Cluster-set.n_cluster'><code>mmrClutVar::Cluster$set.n_cluster()</code></a></span></li>
 </ul>
 </details>
 }}
@@ -41,23 +43,13 @@ print(result$clusters)
 \subsection{Method \code{new()}}{
 Create a new K-means object.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Kmeans$new(
-  n_cluster = NULL,
-  center = TRUE,
-  scale = TRUE,
-  max_iter = 300,
-  random_seed = NULL
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Kmeans$new(n_cluster = NULL, max_iter = 300, random_seed = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{n_cluster}}{An optional integer specifying the number of clusters. If \code{NULL}, the model will determine the optimal number of clusters.}
-
-\item{\code{center}}{A logical indicating whether to center the data (default is \code{TRUE}).}
-
-\item{\code{scale}}{A logical indicating whether to scale the data (default is \code{TRUE}).}
 
 \item{\code{max_iter}}{An integer specifying the maximum number of iterations for the K-means algorithm (default is 300).}
 
@@ -78,7 +70,7 @@ Fits the K-means model to data, automatically finding the best K if not provided
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{A data.frame or matrix on which to perform clustering}
+\item{\code{X}}{a data.frame or matrix of actives variables to compute clusters}
 }
 \if{html}{\out{</div>}}
 }
@@ -89,6 +81,27 @@ A list containing the following components:
 \item \code{centers}: A matrix with the coordinates of cluster centers.
 \item \code{W}: The within-cluster sum of squares for the fitted clusters.
 }
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-K-means-predict"></a>}}
+\if{latex}{\out{\hypertarget{method-K-means-predict}{}}}
+\subsection{Method \code{predict()}}{
+Assign descriptive variables to clusters
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Kmeans$predict(descriptives)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{descriptives}}{A data.frame or matrix of descriptive variables to assign to cluster.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+An integer vector indicating, for each provided variable,
+the index of the cluster to which it is assigned.
 }
 }
 \if{html}{\out{<hr>}}
@@ -105,17 +118,19 @@ Project clusters on factorial plane
 \if{html}{\out{<a id="method-K-means-get.clusters"></a>}}
 \if{latex}{\out{\hypertarget{method-K-means-get.clusters}{}}}
 \subsection{Method \code{get.clusters()}}{
+Get active variables cluster assignments
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Kmeans$get.clusters()}\if{html}{\out{</div>}}
 }
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-K-means-get.center"></a>}}
-\if{latex}{\out{\hypertarget{method-K-means-get.center}{}}}
-\subsection{Method \code{get.center()}}{
+\if{html}{\out{<a id="method-K-means-get.predicts"></a>}}
+\if{latex}{\out{\hypertarget{method-K-means-get.predicts}{}}}
+\subsection{Method \code{get.predicts()}}{
+Get predicted descriptive cluster assignments
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Kmeans$get.center()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Kmeans$get.predicts()}\if{html}{\out{</div>}}
 }
 
 }
