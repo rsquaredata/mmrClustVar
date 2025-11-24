@@ -8,11 +8,17 @@ library(R6)
       # Attributes
       .X = NULL,            # active data
       .descriptives = NULL, # descriptive data
-      .centers  = NULL,     # cluster centroids
       .clusters = NULL,     # cluster assignments
       .predicts = NULL,     # predicted cluster assignments
       .n_cluster = NULL,    # number of clusters
       .max_iter = NULL,     # maximum iteration
+
+      # Getter methods
+      get.n_cluster = function() return(private$.n_cluster),
+      get.max_iter = function() return(private$.max_iter),
+
+      # Setter methods
+      set.n_cluster = function(K) private$.n_cluster <- K,
 
       # Util methods
       .compute_W = function(X, clusters, centers) {

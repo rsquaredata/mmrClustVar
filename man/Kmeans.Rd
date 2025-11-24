@@ -28,15 +28,6 @@ kmeans$predict(mtcars[, descriptive.idx])
 \item \href{#method-K-means-clone}{\code{Kmeans$clone()}}
 }
 }
-\if{html}{\out{
-<details open><summary>Inherited methods</summary>
-<ul>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Cluster" data-id="get.max_iter"><a href='../../mmrClutVar/html/Cluster.html#method-Cluster-get.max_iter'><code>mmrClutVar::Cluster$get.max_iter()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Cluster" data-id="get.n_cluster"><a href='../../mmrClutVar/html/Cluster.html#method-Cluster-get.n_cluster'><code>mmrClutVar::Cluster$get.n_cluster()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="mmrClutVar" data-topic="Cluster" data-id="set.n_cluster"><a href='../../mmrClutVar/html/Cluster.html#method-Cluster-set.n_cluster'><code>mmrClutVar::Cluster$set.n_cluster()</code></a></span></li>
-</ul>
-</details>
-}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-K-means-new"></a>}}
 \if{latex}{\out{\hypertarget{method-K-means-new}{}}}
@@ -70,7 +61,7 @@ Fits the K-means model to data, automatically finding the best K if not provided
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{a data.frame or matrix of actives variables to compute clusters}
+\item{\code{X}}{A data.frame or matrix of actives variables to compute clusters}
 }
 \if{html}{\out{</div>}}
 }

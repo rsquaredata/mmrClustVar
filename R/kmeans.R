@@ -16,8 +16,14 @@ Kmeans <- R6Class("K-means",
 
     private = list(
 
+      # Attributes
+
+      .centers  = NULL,  # cluster centroids
+
+      # Util methods
+
       .stop_iter = function(clust_1, clust_2, iter) {
-        max_iter <- self$get.max_iter()
+        max_iter <- private$get.max_iter()
         if (iter > max_iter) {
           warning("Maximum iteration limit reached; you can set the limit with the `max_iter` parameter.")
           return(TRUE)
@@ -108,7 +114,7 @@ Kmeans <- R6Class("K-means",
 
       #' @description
       #' Fits the K-means model to data, automatically finding the best K if not provided
-      #' @param X a data.frame or matrix of actives variables to compute clusters
+      #' @param X A data.frame or matrix of actives variables to compute clusters
       #' @return A list containing the following components:
       #' - `clusters`: An integer vector indicating the cluster to which each point is allocated.
       #' - `centers`: A matrix with the coordinates of cluster centers.
@@ -124,7 +130,7 @@ Kmeans <- R6Class("K-means",
 
         X <- scale(X, center=TRUE, scale=TRUE)
         n <- ncol(X)
-        K <- self$get.n_cluster()
+        K <- private$get.n_cluster()
 
         if (is.null(K)) {
 
@@ -146,7 +152,7 @@ Kmeans <- R6Class("K-means",
 
           elbow_index <- private$.find_elbow(K_values, W_values, plot=TRUE, plot_axis=c("K", "W score"))
           K <- K_values[elbow_index]
-          self$set.n_cluster(K)
+          private$set.n_cluster(K)
           message("Set K to ", K)
         }
 
@@ -187,13 +193,13 @@ Kmeans <- R6Class("K-means",
         }
 
         n <- ncol(descriptives)
-        K <- self$get.n_cluster()
+        K <- private$get.n_cluster()
 
         assignments <- private$.allocate(X=descriptives, n=n, K=K, centroids=private$.centers)
 
-        # Append descriptive values to the .X object
+        # Save descriptive values
         private$.descriptives <- descriptives
-        # Saves predicted clusters
+        # Save predicted clusters
         private$.predicts <- data.frame(
           cluster=assignments,
           row.names=colnames(descriptives)
@@ -224,7 +230,7 @@ Kmeans <- R6Class("K-means",
           ggplot2::theme_minimal()
       },
 
-      # Getters
+      # Getter methods
 
       #' @description
       #' Get active variables cluster assignments
