@@ -64,6 +64,7 @@ Kmeans <- R6Class("K-means",
       },
 
       .clusterize = function(X, n, K) {
+
         n_obs <- nrow(X)
 
         # initial seeds (random variables used)
@@ -74,13 +75,14 @@ Kmeans <- R6Class("K-means",
         centers <- matrix(centers, nrow=n_obs, ncol=K)
 
         cluster_assignment <- private$.allocate(X, n, K, centers)
-        cluster_assignment <- private$.ensure_non_empty_clusters(cluster_assignment, K)
+        #cluster_assignment <- private$.ensure_non_empty_clusters(cluster_assignment, K)
 
         previous_cluster_assignment <- rep(NA_integer_, n)
         iter <- 1L
 
         while (!private$.stop_iter(cluster_assignment, previous_cluster_assignment, iter)) {
           previous_cluster_assignment <- cluster_assignment
+
 
           centers <- private$.compute_centers(X, cluster_assignment, K)
 
@@ -171,7 +173,6 @@ Kmeans <- R6Class("K-means",
 
         return(list(
           clusters = private$.clusters,
-          centers = result$centers,
           W = W
         ))
       },
@@ -233,6 +234,4 @@ Kmeans <- R6Class("K-means",
     )
 
 )
-
-
 
