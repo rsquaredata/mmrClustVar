@@ -2,8 +2,8 @@
     "sortOrder": [
         {
             "columnIndex": 2,
-            "ascending": true
+            "ascending": false
         }
     ],
-    "path": "~/Documents/SISE/Programmation_R/projet_R_mmrClustVar/mmrClustVar/R"
+    "path": "~/Documents/SISE/Programmation_R/projet_R_mmrClustVar/mmrClustVar/data-raw"
 }

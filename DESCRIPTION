@@ -17,3 +17,5 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     shiny
+Depends: 
+    R (>= 3.5)

@@ -1,0 +1,44 @@
+library(usethis)
+library(dplyr)
+
+# Jeux déjà présents dans R
+iris_num <- iris[, 1:4]
+mtcars_num <- mtcars
+airquality_num <- airquality
+
+# Jeux catégoriels (disponibles via des packages)
+library(vcd)          # pour Arthritis
+data(Arthritis)
+arthritis_cat <- Arthritis
+
+library(titanic)      # install.packages("titanic")
+titanic_cat <- titanic::titanic_train
+
+# mushroom (install.packages("mushroom"))
+library(mushroom)
+data("mushroom")
+mushroom_cat <- mushroom
+
+# Jeux mixtes (à construire)
+iris_mixed <- iris
+iris_mixed$Species <- as.character(iris$Species)
+
+# german_credit
+library(mlbench)
+data("GermanCredit")
+german_credit <- mlbench::GermanCredit
+
+# adult_small — sous-échantillonné
+library(arules)
+data("AdultUCI")
+adult <- AdultUCI
+set.seed(1)
+adult_small <- adult[sample(nrow(adult), 200), ]
+
+# Sauvegarde dans /data/
+usethis::use_data(
+  iris_num, mtcars_num, airquality_num,
+  arthritis_cat, titanic_cat, mushroom_cat,
+  iris_mixed, german_credit, adult_small,
+  overwrite = TRUE
+)
