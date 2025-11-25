@@ -1,3 +1,85 @@
+#' mmrClustVar: R6 Class for Clustering of Variables
+#'
+#' @description
+#' An R6 class implementing clustering of variables using:
+#' \itemize{
+#'   \item \strong{k-means} for numeric variables (correlation-based distance),
+#'   \item \strong{k-modes} for categorical variables (simple matching dissimilarity),
+#'   \item \strong{k-prototypes} for mixed data (weighted combination of both).
+#' }
+#'
+#' Variables are treated as objects: each variable is represented by its
+#' vector of values across individuals. The algorithm partitions the \eqn{p}
+#' variables into \eqn{K} clusters and computes, for each cluster, a latent
+#' component (numeric) or categorical prototype used to assign variables
+#' based on correlation or dissimilarity.
+#'
+#' @section Usage:
+#' \preformatted{
+#' library(mmrClustVar)
+#'
+#' obj <- mmrClustVar$new(method = "kmeans", K = 3, scale = TRUE)
+#' obj$fit(iris[, 1:4])
+#' obj$summary()
+#' obj$plot(type = "membership")
+#' }
+#'
+#' @section Public Methods:
+#' \describe{
+#'   \item{\code{$new(method, K, scale, lambda)}}{Create a new clustering object.}
+#'   \item{\code{$fit(X)}}{Fit the model on active variables.}
+#'   \item{\code{$predict(X_new)}}{Attach supplementary variables.}
+#'   \item{\code{$summary()}}{Display a structured summary including membership scores.}
+#'   \item{\code{$plot(type, Ks)}}{Plot diagnostics (cluster sizes, inertia curve, membership).}
+#' }
+#'
+#' @param method Character. One of:
+#'   \itemize{
+#'     \item \code{"kmeans"} – numeric variables only,
+#'     \item \code{"kmodes"} – categorical variables only,
+#'     \item \code{"kprototypes"} – mixed data,
+#'     \item \code{"auto"} – automatic selection based on variable types.
+#'   }
+#'
+#' @param K Integer. Number of clusters (must be >= 2).
+#'
+#' @param scale Logical. If TRUE, numeric variables are standardized before clustering.
+#'
+#' @param lambda Positive numeric. Weight of the categorical dissimilarity in
+#' k-prototypes (ignored for k-means and k-modes).
+#'
+#' @return
+#' An object of class \code{mmrClustVar} with fields storing:
+#' \itemize{
+#'   \item the cluster assignments,
+#'   \item the latent components / prototypes,
+#'   \item the inertia,
+#'   \item the fitted method,
+#'   \item optional supplementary variable predictions.
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Numeric variables (k-means)
+#' obj <- mmrClustVar$new(method = "kmeans", K = 2)
+#' obj$fit(iris[, 1:4])
+#' obj$summary()
+#'
+#' # Attach a supplementary variable
+#' res_pred <- obj$predict(iris["Sepal.Length"])
+#'
+#' # Mixed data (k-prototypes)
+#' df_mixed <- data.frame(
+#'   x = rnorm(50),
+#'   y = rnorm(50),
+#'   z = factor(sample(letters[1:3], 50, TRUE))
+#' )
+#' obj2 <- mmrClustVar$new(method = "kprototypes", K = 3)
+#' obj2$fit(df_mixed)
+#' }
+#'
+#' @export
+
 mmrClustVar <- R6::R6Class(
     "mmrClustVar",
     
