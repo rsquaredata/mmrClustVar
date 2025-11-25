@@ -21,7 +21,7 @@ X_num <- iris[, 1:4]
 library(R6)
 
 # charger la classe mmrClustVar
-source("mmrClustVar.R")
+source("../R/mmrClustVar.R")
 
 # création de l'objet avec K=2
 obj <- mmrClustVar$new(method = "kmeans", K = 2, scale = TRUE)
