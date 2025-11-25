@@ -1,21 +1,25 @@
-#' Launch the demo Shiny application for mmrClustVar
+#' Launch the mmrClustVar Shiny application
 #'
-#' @description
-#' Launches a Shiny application demonstrating the use of the \code{mmrClustVar} R6 class for clustering variables.
+#' This function launches the Shiny app included in the package,
+#' located under \code{inst/shiny/mmrClustVar_app}.
 #'
 #' @return
-#' Nothing. Opens a Shiny app.
+#' This function is called for its side-effect (launching the app).
+#' @export
 #'
 #' @examples
 #' \dontrun{
 #' run_mmrClustVar_app()
 #' }
-#'
-#' @export
 run_mmrClustVar_app <- function() {
-  app_dir <- system.file("shiny/mmrClustVar_app", package = "mmrClustVar")
-  if (app_dir == "") {
-    stop("Cannot find app directory. Reinstall the package.", call. = FALSE)
-  }
-  shiny::runApp(app_dir, display.mode = "normal")
+    
+    app_dir <- system.file("shiny/mmrClustVar_app", package = "mmrClustVar")
+    
+    message("Chemin Shiny utilisé : ", app_dir)
+    
+    if (app_dir == "" || !file.exists(file.path(app_dir, "app.R"))) {
+        stop("Impossible de trouver l'application Shiny mmrClustVar_app dans inst/shiny/mmrClustVar_app.")
+    }
+    
+    shiny::runApp(app_dir, display.mode = "normal")
 }

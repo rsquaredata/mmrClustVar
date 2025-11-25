@@ -2,19 +2,19 @@
 % Please edit documentation in R/run_app.R
 \name{run_mmrClustVar_app}
 \alias{run_mmrClustVar_app}
-\title{Launch the demo Shiny application for mmrClustVar}
+\title{Launch the mmrClustVar Shiny application}
 \usage{
 run_mmrClustVar_app()
 }
 \value{
-Nothing. Opens a Shiny app.
+This function is called for its side-effect (launching the app).
 }
 \description{
-Launches a Shiny application demonstrating the use of the \code{mmrClustVar} R6 class for clustering variables.
+This function launches the Shiny app included in the package,
+located under \code{inst/shiny/mmrClustVar_app}.
 }
 \examples{
 \dontrun{
 run_mmrClustVar_app()
 }
-
 }

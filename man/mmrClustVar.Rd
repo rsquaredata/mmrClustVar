@@ -13,13 +13,16 @@ An R6 class implementing clustering of variables using:
 \itemize{
 \item \strong{k-means} for numeric variables (correlation-based distance),
 \item \strong{k-modes} for categorical variables (simple matching dissimilarity),
-\item \strong{k-prototypes} for mixed data (weighted combination of both).
+\item \strong{k-prototypes} for mixed data (weighted combination of both),
+\item \strong{k-medoids} as a robust alternative based on a dissimilarity
+matrix between variables.
 }
 
 Variables are treated as objects: each variable is represented by its
 vector of values across individuals. The algorithm partitions the \eqn{p}
 variables into \eqn{K} clusters and, for each cluster, computes a latent
-component or a categorical prototype used to measure similarity.
+component, a categorical prototype or a medoid profile used to measure
+similarity.
 }
 \section{Usage}{
 
@@ -49,12 +52,12 @@ scores, or inertia curve as a function of \code{K}.}
 for the active variables.}
 \item{\code{$get_inertia()}}{Return the total within-cluster inertia.}
 \item{\code{$get_method()}}{Return the fitted method ("kmeans", "kmodes",
-or "kprototypes").}
-\item{\code{$get_centers()}}{Return the list of latent components or
-prototypes.}
+"kprototypes" or "kmedoids").}
+\item{\code{$get_centers()}}{Return the list of latent components,
+prototypes or medoid profiles.}
 \item{\code{$get_convergence()}}{Return a logical indicating whether the
 algorithm converged.}
-\item{\code{$get_X_descr()}}{Return the last set of supplementary variables
+\item{\code{$get_X_new()}}{Return the last set of supplementary variables
 passed to \code{$predict()}.}
 \item{\code{$get_algorithm()}}{Return a textual description of the
 exact algorithm used.}
@@ -118,11 +121,11 @@ obj_kprot$get_method()
 obj_kprot$get_inertia()
 
 # Attach supplementary mixed variables
-df_descr <- data.frame(
+df_suppl <- data.frame(
   Bonus = rnorm(80),
   Label = factor(sample(c("yes", "no"), 80, replace = TRUE))
 )
-res_pred_mixed <- obj_kprot$predict(df_descr)
+res_pred_mixed <- obj_kprot$predict(df_suppl)
 
 
 ## 4) Inertia curve to help choose K --------------------------------------
@@ -149,7 +152,7 @@ obj_elbow$plot(type = "inertia", Ks = 2:6)
 \item \href{#method-mmrClustVar-get_method}{\code{mmrClustVar$get_method()}}
 \item \href{#method-mmrClustVar-get_centers}{\code{mmrClustVar$get_centers()}}
 \item \href{#method-mmrClustVar-get_convergence}{\code{mmrClustVar$get_convergence()}}
-\item \href{#method-mmrClustVar-get_X_descr}{\code{mmrClustVar$get_X_descr()}}
+\item \href{#method-mmrClustVar-get_X_new}{\code{mmrClustVar$get_X_new()}}
 \item \href{#method-mmrClustVar-get_algorithm}{\code{mmrClustVar$get_algorithm()}}
 \item \href{#method-mmrClustVar-clone}{\code{mmrClustVar$clone()}}
 }
@@ -160,7 +163,7 @@ obj_elbow$plot(type = "inertia", Ks = 2:6)
 \subsection{Method \code{new()}}{
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$new(
-  method = c("kmeans", "kmodes", "kprototypes", "auto"),
+  method = c("kmeans", "kmodes", "kprototypes", "kmedoids", "auto"),
   K = 2L,
   scale = TRUE,
   lambda = 1
@@ -175,6 +178,7 @@ obj_elbow$plot(type = "inertia", Ks = 2:6)
 \item \code{"kmeans"} – numeric variables only,
 \item \code{"kmodes"} – categorical variables only,
 \item \code{"kprototypes"} – mixed data,
+\item \code{"kmedoids"} – robust clustering on a dissimilarity between variables,
 \item \code{"auto"} – automatic selection based on variable types.
 }}
 
@@ -230,7 +234,11 @@ k-prototypes (ignored for k-means and k-modes).}
 \if{latex}{\out{\hypertarget{method-mmrClustVar-plot}{}}}
 \subsection{Method \code{plot()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$plot(type = c("inertia", "clusters", "membership"), Ks = NULL, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$plot(
+  type = c("inertia", "clusters", "membership", "profiles"),
+  Ks = NULL,
+  ...
+)}\if{html}{\out{</div>}}
 }
 
 }
@@ -280,11 +288,11 @@ k-prototypes (ignored for k-means and k-modes).}
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-mmrClustVar-get_X_descr"></a>}}
-\if{latex}{\out{\hypertarget{method-mmrClustVar-get_X_descr}{}}}
-\subsection{Method \code{get_X_descr()}}{
+\if{html}{\out{<a id="method-mmrClustVar-get_X_new"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-get_X_new}{}}}
+\subsection{Method \code{get_X_new()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_X_descr()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_X_new()}\if{html}{\out{</div>}}
 }
 
 }
