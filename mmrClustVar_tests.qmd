@@ -1,0 +1,526 @@
+---
+title: "mmrClustVar tests"
+author: "rina"
+format: html
+editor: visual
+---
+
+# Tests des algorithmes
+
+## k-means
+
+## Jeu de données test
+
+```{r}
+X_num <- iris[, 1:4]
+```
+
+## Test minimal
+
+```{r}
+library(R6)
+
+# charger la classe mmrClustVar
+source("mmrClustVar.R")
+
+# création de l'objet avec K=2
+obj <- mmrClustVar$new(method = "kmeans", K = 2, scale = TRUE)
+
+# apprentissage
+obj$fit(X_num)
+
+# affichage succinct
+obj$print()
+```
+
+### Sorties principales
+
+```{r}
+obj$get_clusters()
+```
+
+```{r}
+obj$get_centers()
+```
+
+```{r}
+obj$get_inertia()
+```
+
+```{r}
+obj$get_method()
+```
+
+### Test de sensibilité à K
+
+```{r}
+X_num <- iris[, 1:4]
+
+for (K in 2:5){
+    obj <- mmrClustVar$new(method="kmeans", K=K, scale=TRUE)
+    obj$fit(X_num)
+    cat("K =", K, " - inertie =", obj$get_inertia(), "\n")
+}
+```
+
+### Test de robustesse de la convergence
+
+```{r}
+n_runs <- 20
+inertias <- numeric(n_runs)
+convergences <- logical(n_runs)
+
+for (i in seq_len(n_runs)) {
+  obj <- mmrClustVar$new(method = "kmeans", K= 2, scale = TRUE)
+  obj$fit(X_num)
+  
+  inertias[i] <- obj$get_inertia()
+  convergences[i] <- obj$get_convergence()
+}
+
+# afficher un tableau des résultats
+results <- data.frame(Run=1:n_runs, Inertia=inertias, Converged=convergences)
+results
+```
+
+### Fonctions internes
+
+```{r}
+# préparation des données
+X_num <- iris[, 1:4]
+
+obj_test <- mmrClustVar$new(method = "kmeans", K = 2, scale = TRUE)
+
+X_num_prep <- obj_test$.__enclos_env__$private$check_and_prepare_X(X_num)
+
+str(X_num_prep)
+obj_test$.__enclos_env__$private$FNumCols
+obj_test$.__enclos_env__$private$FCatCols 
+```
+
+```{r}
+# standardisation des variables actives
+X_num <- iris[, 1:4]
+
+obj_scale <- mmrClustVar$new(method = "kmeans", K = 2, scale = TRUE)
+
+X_num_prep <- obj_scale$.__enclos_env__$private$check_and_prepare_X(X_num)
+X_num_scaled <- obj_scale$.__enclos_env__$private$scale_active_variables(X_num_prep)
+
+apply(X_num_scaled, 2, mean)
+apply(X_num_scaled, 2, sd)
+```
+
+```{r}
+# calcul de distance
+X_num <- iris[, 1:4]
+
+x1 <- scale(X_num$Sepal.Length)
+x2 <- scale(X_num$Petal.Length)
+
+r  <- cor(x1, x2)
+d2 <- 1 - r^2
+r
+d2
+```
+
+```{r}
+# test de la composante latente d'un cluster (ACP interne)
+X_num <- iris[, 1:4]
+X_num_scaled <- scale(X_num)
+
+pc_test <- prcomp(X_num_scaled, center = FALSE, scale. = FALSE)
+
+# composante latente Z pour le cluster
+Z <- pc_test$x[, 1]
+
+# corrélation de chaque variable avec Z
+cors <- apply(X_num_scaled, 2, function(xj) cor(xj, Z))
+cors
+cors^2
+```
+
+### Prédiction
+
+```{r}
+# données actives : iris num
+X <- iris[, 1:4]
+
+obj_km <- mmrClustVar$new(method="kmeans", K=2, scale=TRUE)
+obj_km$fit(X)
+
+# variables descriptives : on reprend par exemple Sepal.Length et Sepal.Width
+X_descr <- iris[, 1:2]
+
+pred_res <- obj_km$predict(X_descr)
+pred_res
+```
+
+## k-modes
+
+### Jeu de données test
+
+```{r}
+# créer un dataset dérivé du fichier iris
+X_cat <- data.frame(
+  Sepal.Length.f = cut(iris$Sepal.Length, 3),
+  Sepal.Width.f  = cut(iris$Sepal.Width, 3),
+  Petal.Length.f = cut(iris$Petal.Length, 3),
+  Petal.Width.f  = cut(iris$Petal.Width, 3)
+)
+```
+
+### Test minimal
+
+```{r}
+source("mmrClustVar.R")
+
+obj_kmodes <- mmrClustVar$new(method = "kmodes", K = 2)
+obj_kmodes$fit(X_cat)
+obj_kmodes$print()
+```
+
+### Principales sorties
+
+```{r}
+obj_kmodes$get_clusters()
+```
+
+```{r}
+obj_kmodes$get_centers()
+```
+
+```{r}
+obj_kmodes$get_method()
+```
+
+```{r}
+obj_kmodes$get_inertia()
+```
+
+### Test de sensibilité à K
+
+```{r}
+for (K in 2:5){
+    obj <- mmrClustVar$new(method="kmodes", K=K)
+    obj$fit(X_cat)
+    cat("K =", K, " - inertie =", obj$get_inertia(), "\n")
+}
+```
+
+### Test de robustesse de la convergence
+
+```{r}
+n_runs <- 20
+inertias_kmodes <- numeric(n_runs)
+convergences_kmodes <- logical(n_runs)
+
+for (i in seq_len(n_runs)) {
+  obj <- mmrClustVar$new(method = "kmodes", K = 2)
+  obj$fit(X_cat)
+  
+  inertias_kmodes[i]     <- obj$get_inertia()
+  convergences_kmodes[i] <- obj$get_convergence()
+}
+
+# afficher un tableau des résultats
+res_kmodes <- data.frame(Run=1:n_runs, Inertia= inertias_kmodes, Converged=convergences_kmodes)
+res_kmodes
+```
+
+### Tests unitaires
+
+```{r}
+# préparation des données
+obj_test_km <- mmrClustVar$new(method = "kmodes", K = 2, scale = FALSE)
+
+X_cat_prep <- obj_test_km$.__enclos_env__$private$check_and_prepare_X(X_cat)
+
+str(X_cat_prep)
+obj_test_km$.__enclos_env__$private$FNumCols  # attendu : integer(0)
+obj_test_km$.__enclos_env__$private$FCatCols  # attendu : 1:4
+```
+
+```{r}
+# structure des prototypes catégoriels
+obj_kmodes2 <- mmrClustVar$new(method = "kmodes", K = 2)
+obj_kmodes2$fit(X_cat)
+
+centers_km <- obj_kmodes2$get_centers()
+length(centers_km)          # doit être K = 2
+
+sapply(centers_km, length)  # doit être = nombre d'individus (150)
+head(centers_km[[1]])
+```
+
+```{r}
+# dissimilarité simple matching
+obj_kmodes3 <- mmrClustVar$new(method = "kmodes", K = 2)
+obj_kmodes3$fit(X_cat)
+
+centers_km  <- obj_kmodes3$get_centers()
+clusters_km <- obj_kmodes3$get_clusters()
+
+d_all <- numeric(ncol(X_cat))
+
+for (j in seq_len(ncol(X_cat))) {
+  kj <- clusters_km[j]
+  xj <- as.character(X_cat[[j]])
+  zk <- centers_km[[kj]]
+  
+  mismatch <- xj != zk
+  d_all[j] <- mean(mismatch, na.rm = TRUE)
+}
+
+d_all
+range(d_all)
+```
+
+### Test de prédiction
+
+```{r}
+X_cat <- data.frame(
+  Sepal.Length.f = cut(iris$Sepal.Length, 3),
+  Sepal.Width.f  = cut(iris$Sepal.Width, 3),
+  Petal.Length.f = cut(iris$Petal.Length, 3),
+  Petal.Width.f  = cut(iris$Petal.Width, 3)
+)
+
+obj_kmodes <- mmrClustVar$new(method = "kmodes", K = 3)
+obj_kmodes$fit(X_cat)
+
+X_descr_cat <- X_cat[, 1:2]
+obj_kmodes$predict(X_descr_cat)
+```
+
+## k-prototypes
+
+### Jeu de données test
+
+```{r}
+# créer un dataset mixte dérivé du fichier iris
+X_mix <- data.frame(
+  iris[, 1:4],            # 4 variables quantitatives
+  Species = iris$Species  # 1 variable qualitative
+)
+str(X_mix)
+```
+
+### Test minimal
+
+```{r}
+source("mmrClustVar.R")
+
+obj_kprot <- mmrClustVar$new(method="kprototypes", K=3, scale  = TRUE, lambda=1)
+
+obj_kprot$fit(X_mix)
+obj_kprot$print()
+```
+
+### Sorties principales
+
+```{r}
+obj_kprot$get_clusters()
+```
+
+```{r}
+obj_kprot$get_inertia()
+```
+
+```{r}
+obj_kprot$get_method()
+```
+
+### Tests unitaires
+
+```{r}
+# préparation des données
+obj_test_kp <- mmrClustVar$new(method="kprototypes", K=3, scale=TRUE, lambda=1)
+X_mix_prep <- obj_test_kp$.__enclos_env__$private$check_and_prepare_X(X_mix)
+
+str(X_mix_prep)
+obj_test_kp$.__enclos_env__$private$FNumCols  # attendu : 1:4
+obj_test_kp$.__enclos_env__$private$FCatCols  # attendu : 5
+```
+
+```{r}
+# structure des prototypes mixtes
+obj_kprot2 <- mmrClustVar$new(method="kprototypes", K=3, scale = TRUE,
+  lambda = 1
+)
+obj_kprot2$fit(X_mix)
+
+prototypes_kp <- obj_kprot2$.__enclos_env__$private$FCenters
+
+length(prototypes_kp)  # attendu : 3 (K)
+names(prototypes_kp)   # NULL si la liste de clusters n'a pas de noms
+
+# Pour le premier cluster :
+proto1 <- prototypes_kp[[1]]
+str(proto1)
+
+# Partie numérique : vecteur de longueur n (profil moyen par individu)
+length(proto1$num)
+head(proto1$num)
+
+# Partie catégorielle : vecteur nommé sur les variables qualitatives
+proto1$cat
+```
+
+```{r}
+# --- calcul de la distance mixte ---
+
+# données mixtes
+X_mix <- data.frame(iris[, 1:4], Species = iris$Species)
+
+obj_kprot3 <- mmrClustVar$new(method="kprototypes", K=3, scale  = TRUE, lambda=1)
+
+obj_kprot3$fit(X_mix)
+
+# objets interne pour test
+X_used <- obj_kprot3$.__enclos_env__$private$FX_active
+prototypes <- obj_kprot3$.__enclos_env__$private$FCenters
+clusters <- obj_kprot3$get_clusters()
+num_idx <- obj_kprot3$.__enclos_env__$private$FNumCols
+cat_idx <- obj_kprot3$.__enclos_env__$private$FCatCols
+lambda <- obj_kprot3$.__enclos_env__$private$FLambda
+
+# première variable numérique
+j_num <- num_idx[1]
+var_name_num <- colnames(X_used)[j_num]
+kj <- clusters[j_num]  # cluster assigné à cette variable
+
+xj <- X_used[[j_num]]  # variable telle qu'utilisée dans l'algo (déjà standardisée si scale=TRUE)
+
+#dDistance à chaque prototype numérique
+d2_all <- numeric(length(prototypes))
+
+for (k in seq_along(prototypes)) {
+  zk_num <- prototypes[[k]]$num
+  if (is.null(zk_num)) {
+    d2_all[k] <- NA
+  } else {
+    r <- suppressWarnings(stats::cor(xj, zk_num, use = "pairwise.complete.obs"))
+    if (is.na(r)) r <- 0
+    d2_all[k] <- 1 - r^2
+  }
+}
+
+d2_all
+kj
+which.min(d2_all)
+
+# variable qualitative (Species)
+j_cat <- cat_idx[1]
+var_name_cat <- colnames(X_used)[j_cat]
+kc <- clusters[j_cat]  # cluster assigné à Species
+
+xj_cat <- as.character(X_used[[j_cat]])
+
+d_cat_all <- numeric(length(prototypes))
+
+for (k in seq_along(prototypes)) {
+  cat_prof <- prototypes[[k]]$cat
+  
+  if (is.null(cat_prof) || is.na(cat_prof[var_name_cat])) {
+    d_cat_all[k] <- NA
+  } else {
+    zk_cat <- cat_prof[[var_name_cat]]
+    mismatch <- xj_cat != zk_cat
+    d_cat    <- mean(mismatch, na.rm = TRUE)
+    d_cat_all[k] <- lambda * d_cat
+  }
+}
+
+d_cat_all            # attendu : 0 < valeurs < lambda
+kc
+which.min(d_cat_all) # attendu : which.min(d_cat_call) = kc
+```
+
+### Test de sensibilité à K
+
+```{r}
+for (K in 2:5) {
+  obj <- mmrClustVar$new(method="kprototypes", K=K, scale=TRUE, lambda = 1)
+  obj$fit(X_mix)
+  cat("K =", K, " - inertie = ", obj$get_inertia(), "\n")
+}
+```
+
+### Test de robustesse de la convergence
+
+```{r}
+n_runs <- 20
+inertias_kprot <- numeric(n_runs)
+convergences_kprot <- logical(n_runs)
+
+for (i in seq_len(n_runs)) {
+  obj <- mmrClustVar$new(method="kprototypes", K=3, scale=TRUE, lambda=1)
+  obj$fit(X_mix)
+  
+  inertias_kprot[i] <- obj$get_inertia()
+  convergences_kprot[i] <- obj$get_convergence()
+}
+
+# afficher un tableau des résultats
+res_kprot <- data.frame(Run=1:n_runs, Inertia= inertias_kprot, Converged=convergences_kprot)
+res_kprot
+```
+
+### Test de prédiction
+
+```{r}
+X_mix <- data.frame(iris[, 1:4], Species = iris$Species)
+
+obj_kprot <- mmrClustVar$new(method = "kprototypes", K = 3, scale = TRUE, lambda = 1)
+obj_kprot$fit(X_mix)
+
+# descriptives numériques
+obj_kprot$predict(X_mix[, 1:2])
+
+# descriptives qualitatives
+obj_kprot$predict(X_mix["Species"])
+```
+
+```{=html}
+<!--
+## Tests de cohérence sur les résultats de clustering
+
+Sur chaque jeu de données :
+
+-   plusieurs exécutions de `fit()` ont été réalisées avec différentes valeurs de $K$ ;
+-   la convergence de l'algorithme a été contrôlée (`FConvergence = TRUE`) ;
+-   la structure des clusters a été comparée à la structure attendue des données.
+
+Exemples :
+
+-   sur des données quantitatives artificielles où des variables sont des combinaisons linéaires les unes des autres, les variables redondantes ont été regroupées dans les mêmes clusters (k-means) ;
+
+-   sur un jeu de données purement qualitatif, les variables partageant les mêmes modalités dominantes sur les individus se sont retrouvées dans les mêmes clusters (k-modes) ;
+
+-   sur des données mixtes, les clusters identifiés reflètent bien à la fois :
+
+    -   la proximité numérique (profils proches sur les variables continues) ;
+    -   et la proximité catégorielle (modalités similaires sur les facteurs).
+-->
+```
+
+# Tests d'usage sur l'interface Shiny
+
+```{=html}
+<!--
+- test de l'interface Shiny avec différents réglages (`method`, `K`, `scale`, `lambda`) :
+    - appel du constructeur ;
+    - appel de `fit(X)` sur un jeu de données adapté ;
+    - appel à `summary()` pour vérifier :
+        - la taille des clusters,
+        - l'inertie,
+        - les indicateurs d'adhésion,
+        - la lisibilité en console ;
+    - appel de `plot(type = "inertia")`, `plot(type = "clusters")` et `plot(type = "membership")`
+        - pour valider la génération sans erreur des graphiques de base ;
+    - appel de `predict(X_new)` sur des variables descriptives pour vérifier :
+        - le bon rattachement aux clusters,
+        - la cohérence des indicateurs retournés.
+-->
+```
