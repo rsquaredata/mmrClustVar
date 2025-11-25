@@ -2,5 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
+<<<<<<< Updated upstream
 .DS_Store
 perso_test.r
+=======
+>>>>>>> Stashed changes
