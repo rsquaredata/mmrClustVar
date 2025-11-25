@@ -3,13 +3,11 @@ library(R6)
 
 Kmodes <- R6Class("Kmodes",
 
-   inherit = .Clustering,
+   inherit = .Cluster,
 
    private = list(
 
      .modes    = NULL,   # centers (variables fictives)
-     .clusters = NULL,   # cluster assignment of variables
-
 
      # DISTANCE entre deux variables (colonnes)
 
