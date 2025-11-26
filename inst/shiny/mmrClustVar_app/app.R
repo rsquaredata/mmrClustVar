@@ -58,8 +58,13 @@ ui <- fluidPage(
             
             sliderInput("K", "Nombre de clusters K :", min = 2, max = 10, value = 3),
             checkboxInput("scale", "Standardiser les quantitatives", TRUE),
+            helpText("La standardisation est ignorée si toutes les variables actives sont qualitatives."),
             
-            numericInput("lambda", "λ (k-prototypes)", value = 1, min = 0.1, step = 0.1),
+            # λ uniquement pour k-prototypes
+            conditionalPanel(
+                "input.method == 'kprototypes'",
+                numericInput("lambda", "λ (k-prototypes)", value = 1, min = 0.1, step = 0.1)
+            ),
             
             hr(),
             
@@ -80,15 +85,16 @@ ui <- fluidPage(
                 
                 tabPanel("Clusters",
                          tableOutput("cluster_table"),
-                         tableOutput("cluster_sizes")
+                         tableOutput("cluster_sizes"),
+                         downloadButton("download_clusters", "Exporter les clusters (CSV)")
                 ),
                 
                 tabPanel("Graphiques",
                          selectInput("plot_type", "Type de graphique :",
-                                     choices = c("Inertie" = "inertia",
-                                                 "Clusters" = "clusters",
-                                                 "Adhésion" = "membership",
-                                                 "Profils"  = "profiles")),
+                                     choices = c("Inertie"   = "inertia",
+                                                 "Clusters"  = "clusters",
+                                                 "Adhésion"  = "membership",
+                                                 "Profils"   = "profiles")),
                          plotOutput("plot")
                 ),
                 
@@ -130,8 +136,8 @@ server <- function(input, output, session) {
             if (ext %in% c("csv", "txt")) {
                 read.csv(
                     input$file$datapath,
-                    header      = input$header,
-                    sep         = input$sep,
+                    header       = input$header,
+                    sep          = input$sep,
                     fileEncoding = input$encoding
                 )
             } else if (ext %in% c("xlsx", "xls")) {
@@ -168,22 +174,56 @@ server <- function(input, output, session) {
     observeEvent(input$run_fit, {
         
         df <- dataset()
-        
         req(input$active_vars)
         
         X <- df[, input$active_vars, drop = FALSE]
+        p_actives <- ncol(X)
+        
+        # 1) Vérifier K <= nb variables actives
+        if (input$K > p_actives) {
+            showNotification(
+                "K ne peut pas dépasser le nombre de variables actives sélectionnées.",
+                type = "error"
+            )
+            return()
+        }
+        
+        # 2) Déterminer types des variables actives
+        is_num <- vapply(X, is.numeric, logical(1L))
+        has_num <- any(is_num)
+        has_cat <- any(!is_num)
+        
+        # 3) Gérer scale : ignoré si aucune variable numérique
+        scale_arg <- input$scale
+        if (!has_num && isTRUE(scale_arg)) {
+            scale_arg <- FALSE
+            showNotification(
+                "Standardisation ignorée : toutes les variables actives sont qualitatives.",
+                type = "message"
+            )
+        }
+        
+        # 4) Création de l'objet façade
+        lambda_arg <- if (!is.null(input$lambda)) input$lambda else 1
         
         obj <- mmrClustVar$new(
             method = input$method,
             K      = input$K,
-            scale  = input$scale,
-            lambda = input$lambda
+            scale  = scale_arg,
+            lambda = lambda_arg
         )
         
-        obj$fit(X)
-        model_obj(obj)
-        
-        showNotification("Clustering terminé.", type = "message")
+        # 5) Apprentissage avec gestion propre des erreurs
+        tryCatch({
+            obj$fit(X)
+            model_obj(obj)
+            showNotification("Clustering terminé.", type = "message")
+        }, error = function(e) {
+            showNotification(
+                paste("Erreur pendant le clustering :", conditionMessage(e)),
+                type = "error"
+            )
+        })
     })
     
     
@@ -199,11 +239,20 @@ server <- function(input, output, session) {
         
         X_suppl <- df[, input$suppl_vars, drop = FALSE]
         
-        pred <- obj$predict(X_suppl)
+        pred <- tryCatch({
+            obj$predict(X_suppl)
+        }, error = function(e) {
+            showNotification(
+                paste("Erreur pendant le rattachement :", conditionMessage(e)),
+                type = "error"
+            )
+            return(NULL)
+        })
         
-        output$predict_table <- renderTable(pred)
-        
-        showNotification("Variables supplémentaires rattachées.", type = "message")
+        if (!is.null(pred)) {
+            output$predict_table <- renderTable(pred)
+            showNotification("Variables supplémentaires rattachées.", type = "message")
+        }
     })
     
     
@@ -232,8 +281,19 @@ server <- function(input, output, session) {
         vars <- input$active_vars
         clusters <- obj$get_clusters()
         
-        if (length(vars) != length(clusters)) {
+        # Cas où rien n'est sélectionné / appris
+        if (is.null(vars) || length(vars) == 0L) {
             return(data.frame())
+        }
+        if (is.null(clusters) || length(clusters) == 0L) {
+            return(data.frame())
+        }
+        
+        # Cas incohérent (sécurité, doesn't occure normalement)
+        if (length(vars) != length(clusters)) {
+            return(data.frame(
+                message = "Incohérence entre le nombre de variables actives et le nombre d'affectations de clusters."
+            ))
         }
         
         data.frame(
@@ -242,6 +302,54 @@ server <- function(input, output, session) {
             stringsAsFactors = FALSE
         )
     })
+
+    # --- Tailles de clusters -------------------------------------------------
+    
+    output$cluster_sizes <- renderTable({
+        obj <- model_obj()
+        req(obj)
+        
+        clusters <- obj$get_clusters()
+        if (is.null(clusters) || length(clusters) == 0L) {
+            return(data.frame())
+        }
+        
+        as.data.frame(table(cluster = clusters))
+    })
+
+    # --- Export des clusters -------------------------------------------------
+    
+    output$download_clusters <- downloadHandler(
+        filename = function() {
+            paste0("mmrClustVar_clusters_", Sys.Date(), ".csv")
+        },
+        content = function(file) {
+            obj <- model_obj()
+            req(obj)
+            
+            df   <- dataset()
+            vars <- input$active_vars
+            clusters <- obj$get_clusters()
+            
+            if (is.null(vars) || length(vars) == 0L ||
+                is.null(clusters) || length(clusters) == 0L ||
+                length(vars) != length(clusters)) {
+                utils::write.csv(
+                    data.frame(message = "Aucun résultat exploitable (clustering non réalisé ou incohérent)."),
+                    file,
+                    row.names = FALSE
+                )
+            } else {
+                out <- data.frame(
+                    variable = vars,
+                    cluster  = clusters,
+                    stringsAsFactors = FALSE
+                )
+                utils::write.csv(out, file, row.names = FALSE)
+            }
+        }
+    )
+
     
     
     # --- Graphiques ----------------------------------------------------------
@@ -268,9 +376,9 @@ server <- function(input, output, session) {
         req(obj)
         
         paste(
-            "Méthode :", obj$get_method(), "\n",
-            "Convergence :", obj$get_convergence(), "\n",
-            "Inertie :", obj$get_inertia()
+            "Méthode    :", obj$get_method(),      "\n",
+            "Convergence:", obj$get_convergence(), "\n",
+            "Inertie    :", obj$get_inertia()
         )
     })
 }

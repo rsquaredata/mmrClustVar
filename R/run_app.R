@@ -23,3 +23,4 @@ run_mmrClustVar_app <- function() {
     
     shiny::runApp(app_dir, display.mode = "normal")
 }
+
