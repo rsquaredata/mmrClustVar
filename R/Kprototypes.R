@@ -74,8 +74,8 @@ Kprototypes <- R6::R6Class(
       K <- private$FNbGroupes
       
       if (length(x_new) != n) {
-        stop("predict_one_variable() : la variable '", var_name,
-             "' n'a pas le même nombre d'individus que les données actives.")
+        stop("predict_one_variable() : variable '", var_name,
+             "' doesn't have the same number of observations as the active data.")
       }
       
       centers    <- private$FCenters   # liste de K prototypes mixtes (num + cat)
@@ -86,7 +86,7 @@ Kprototypes <- R6::R6Class(
       lambda     <- private$FLambda
       
       if (is.null(centers) || is.null(clusters)) {
-        stop("predict_one_variable() : les prototypes ne sont pas disponibles. Appelez fit() d'abord.")
+        stop("predict_one_variable() : prototypes are not available. Call fit() first.")
       }
       
       # --- Cas numérique : même logique que k-means, avec prototypes$num ---
@@ -128,8 +128,8 @@ Kprototypes <- R6::R6Class(
       
       # --- Cas qualitatif : simple matching sur profil catégoriel par cluster ---
       if (!(is.factor(x_new) || is.character(x_new))) {
-        stop("predict_one_variable() : pour 'kprototypes', la variable '",
-             var_name, "' doit être soit numérique, soit qualitative (factor/character).")
+        stop("predict_one_variable() : for 'kprototypes', variable '",
+             var_name, "' must be either numerical or qualitative (factor/character).")
       }
       x_char <- as.character(x_new)
       
@@ -227,7 +227,7 @@ Kprototypes <- R6::R6Class(
         }
       }
       
-      membership_label <- "Score d'adhésion (r^2 pour les num., 1 - dissimilarité pour les cat.)"
+      membership_label <- "Adherence score (r^2 for numbers, 1 - dissimilarity for categories)"
       
       return(list(
         content = membership,
@@ -373,8 +373,8 @@ Kprototypes <- R6::R6Class(
   public = list(
     
     initialize = function(K = 2L, lambda = 1, scale = TRUE, random_state = NULL) {
-      if (K < 2L) stop("K doit être supérieur ou égal à 2.")
-      if (lambda <= 0) stop("lambda doit être strictement positif.")
+      if (K < 2L) stop("K must be greater than or equal to 2")
+      if (lambda <= 0) stop("lambda must be strictly positive.")
       
       private$FMethod <- "kprototypes"
       private$FNbGroupes <- as.integer(K)
@@ -404,7 +404,7 @@ Kprototypes <- R6::R6Class(
     
     predict = function(X_new) {
       if (is.null(private$FX_active)) {
-        stop("Le modèle n'a pas encore été appris. Appelez fit() d'abord.")
+        stop("The model has not yet been trained. Call fit() first.")
       }
       private$check_X_new(X_new)
       

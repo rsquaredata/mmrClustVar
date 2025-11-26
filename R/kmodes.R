@@ -32,7 +32,7 @@ Kmodes <- R6::R6Class(
       if (update_structure) {
         private$FCatCols <- cat_idx
         if (length(cat_idx) == 0L) {
-          stop("Aucune variable qualitative trouvée pour la méthode 'kmodes'.")
+          stop("No qualitative variables found for the “kmodes” method.")
         }
       }
       
@@ -49,20 +49,20 @@ Kmodes <- R6::R6Class(
       K <- private$FNbGroupes
       
       if (length(x_new) != n) {
-        stop("predict_one_variable() : la variable '", var_name,
-             "' n'a pas le même nombre d'individus que les données actives.")
+        stop("predict_one_variable() : variable '", var_name,
+             "' doesn't have the same number of observations as the active data.")
       }
       
       # On accepte factor ou character
       if (!(is.factor(x_new) || is.character(x_new))) {
-        stop("predict_one_variable() : pour la méthode 'kmodes', la variable '",
-             var_name, "' doit être qualitative (factor ou character).")
+        stop("predict_one_variable() : for 'kmodes', variable '",
+             var_name, "' must be qualitative (factor or character).")
       }
       x_char <- as.character(x_new)
       
       centers <- private$FCenters  # liste de K prototypes catégoriels (vecteurs de longueur n)
       if (is.null(centers)) {
-        stop("predict_one_variable() : les prototypes ne sont pas disponibles. Appelez fit() d'abord.")
+        stop("predict_one_variable(): prototypes are not available. Call fit() first.")
       }
       
       distances <- numeric(K)
@@ -117,7 +117,7 @@ Kmodes <- R6::R6Class(
         if (is.na(d)) d <- 1
         membership[j] <- 1 - d
       }
-      membership_label <- "1 - dissimilarité (simple matching) avec le mode du cluster"
+      membership_label <- "1 - dissimilarity (simple matching) with cluster mode"
       
       return(list(
         content = membership,
@@ -136,7 +136,7 @@ Kmodes <- R6::R6Class(
       # Sécurité : toutes les colonnes doivent être des facteurs
       is_cat <- vapply(X, is.factor, logical(1L))
       if (!all(is_cat)) {
-        stop("run_kmodes() : X doit contenir uniquement des variables qualitatives.")
+        stop("run_kmodes() : X must contain only qualitative variables.")
       }
       
       # On travaille en caractère pour simplifier les comparaisons
@@ -190,7 +190,7 @@ Kmodes <- R6::R6Class(
           for (k in seq_len(K)) {
             zk <- Z_list[[k]]
             if (length(zk) != n) {
-              stop("run_kmodes() : prototype de longueur incompatible.")
+              stop("run_kmodes() : prototype of incompatible length.")
             }
             mismatch <- xj != zk
             d <- mean(mismatch, na.rm = TRUE)
@@ -232,7 +232,7 @@ Kmodes <- R6::R6Class(
   public = list(
     
     initialize = function(K = 2L, random_state = NULL) {
-      if (K < 2L) stop("K doit être supérieur ou égal à 2.")
+      if (K < 2L) stop("K must be greater or egal to 2")
       
       private$FMethod <- "kmodes"
       private$FNbGroupes <- as.integer(K)
@@ -255,7 +255,7 @@ Kmodes <- R6::R6Class(
     
     predict = function(X_new) {
       if (is.null(private$FX_active)) {
-        stop("Le modèle n'a pas encore été appris. Appelez fit() d'abord.")
+        stop("The model has not yet been trained. Call fit() first.")
       }
       private$check_X_new(X_new)
       

@@ -27,7 +27,7 @@ Kmeans <- R6::R6Class(
         private$FNumCols <- num_idx
         
         if (length(num_idx) == 0L) {
-          stop("Aucune variable quantitative trouvée pour la méthode 'kmeans'.")
+          stop("No quantitative variables found.")
         }
       }
       
@@ -44,18 +44,18 @@ Kmeans <- R6::R6Class(
       K <- private$FNbGroupes
       
       if (length(x_new) != n) {
-        stop("predict_one_variable() : la variable '", var_name,
-             "' n'a pas le même nombre d'individus que les données actives.")
+        stop("predict_one_variable(): variable '", var_name,
+             "' doesn't have the same number of observations as the active data.")
       }
       
       if (!is.numeric(x_new)) {
-        stop("predict_one_variable() : pour la méthode 'kmeans', la variable '",
-             var_name, "' doit être numérique.")
+        stop("predict_one_variable(): for “kmeans”, variable '",
+             var_name, "'must be numeric.")
       }
       
       centers <- private$FCenters  # liste de K composantes latentes Z_k
       if (is.null(centers)) {
-        stop("predict_one_variable() : les prototypes ne sont pas disponibles. Appelez fit() d'abord.")
+        stop("predict_one_variable(): prototypes are not available. Call fit() first.")
       }
       
       distances <- numeric(K)
@@ -110,7 +110,7 @@ Kmeans <- R6::R6Class(
         if (is.na(r)) r <- 0
         membership[j] <- r^2
       }
-      membership_label <- "r^2 (correlation avec la composante latente du cluster)"
+      membership_label <- "r^2 (correlation with the latent comp of the cluster)"
       
       return(list(
         content = membership,
@@ -129,7 +129,7 @@ Kmeans <- R6::R6Class(
       # Sécurité : vérifier que tout est numérique
       is_num <- vapply(X, is.numeric, logical(1L))
       if (!all(is_num)) {
-        stop("run_kmeans() : X doit contenir uniquement des variables quantitatives.")
+        stop("run_kmeans() : X must contain only quantitative variables.")
       }
       
       X_mat <- as.matrix(X)
@@ -217,7 +217,7 @@ Kmeans <- R6::R6Class(
   public = list(
     
     initialize = function(K = 2L, scale = TRUE, random_state = NULL) {
-      if (K < 2L) stop("K doit être supérieur ou égal à 2.")
+      if (K < 2L) stop("K must be greater than or equal to 2.")
       
       private$FMethod <- "kmeans"
       private$FNbGroupes <- as.integer(K)
@@ -244,7 +244,7 @@ Kmeans <- R6::R6Class(
     
     predict = function(X_new) {
       if (is.null(private$FX_active)) {
-        stop("Le modèle n'a pas encore été appris. Appelez fit() d'abord.")
+        stop("The model has not yet been trained. Call fit() first.")
       }
       private$check_X_new(X_new)
       

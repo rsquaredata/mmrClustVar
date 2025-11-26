@@ -66,6 +66,7 @@
     },
     
     # --- Abstract interns  ---
+    
     compute_membership = function(X, clusters, centers) {
       # Compute cluster membership
       # Arguments:
@@ -86,15 +87,15 @@
     # --- Print methods ---
     
     print = function(...) {
-      cat("Classe 'mmrClustVar'\n")
-      cat("  Méthode        :", private$FMethod, "\n")
+      cat("Variable clustering model\n")
+      cat("  Algorithm      :", private$FMethod, "\n")
       cat("  K              :", private$FNbGroupes, "\n")
       if (!is.null(private$FX_active)) {
-        cat("  Nb variables   :", ncol(private$FX_active), "\n")
-        cat("  Nb individus   :", nrow(private$FX_active), "\n")
+        cat("  Nb of variables  :", ncol(private$FX_active), "\n")
+        cat("  Nb of obs     :", nrow(private$FX_active), "\n")
       }
       if (!is.null(private$FInertia)) {
-        cat("  Inertie intra  :", format(private$FInertia, digits = 4), "\n")
+        cat("  Intra-inertia  :", format(private$FInertia, digits = 4), "\n")
       }
       cat("  Convergence    :", private$FConvergence, "\n")
       invisible(self)
@@ -106,12 +107,12 @@
       clusters <- private$FClusters
       centers  <- private$FCenters
       
-      cat("Résumé du modèle 'mmrClustVar'\n")
-      cat("  Méthode        :", method, "\n")
-      cat("  K              :", K, "\n")
-      cat("  Nb variables   :", length(clusters), "\n")
-      cat("  Inertie intra  :", format(private$FInertia, digits = 4), "\n")
-      cat("  Convergence    :", private$FConvergence, "\n\n")
+      cat("Model summary\n")
+      cat("  Algorithm        :", method, "\n")
+      cat("  K                :", K, "\n")
+      cat("  Nb of variables  :", length(clusters), "\n")
+      cat("  Intra-inertia    :", format(private$FInertia, digits = 4), "\n")
+      cat("  Convergence      :", private$FConvergence, "\n\n")
       
       # --- 1) Degré d'adhésion par variable ---
       membership <- private$compute_membership(X, clusters, centers)
@@ -121,7 +122,7 @@
       cl_ids   <- as.integer(names(tab_size))
       mean_mem <- tapply(membership$content, clusters, mean, na.rm = TRUE)
       
-      cat("Résumé par cluster :\n")
+      cat("Per cluster summary:\n")
       cl_df <- data.frame(
         cluster          = cl_ids,
         taille           = as.integer(tab_size[as.character(cl_ids)]),
@@ -138,11 +139,11 @@
         stringsAsFactors = FALSE
       )
       
-      cat("Indicateur d'adhésion (", membership$label, ")\n", sep = "")
+      cat("Adherence indicator (", membership$label, ")\n", sep = "")
       # On affiche seulement les 10 premières lignes triées par cluster puis par adhésion décroissante
       ord <- order(var_df$cluster, -var_df$adhesion)
       print(utils::head(var_df[ord, ], n = min(10L, nrow(var_df))), row.names = FALSE)
-      cat("\n(Le data.frame complet est renvoyé invisiblement.)\n")
+      cat("\n(The full data.frame is returned as an invisible object)\n")
       
       invisible(var_df)
     },
