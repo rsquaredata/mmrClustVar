@@ -1,0 +1,18 @@
+# R files
+.Rhistory
+.RData
+.Ruserdata
+
+# RStudio project metadata
+.Rproj.user
+
+# System files
+.DS_Store
+
+# Shiny cache junk
+inst/shiny/mmrClustVar_app/.DS_Store
+inst/shiny/.DS_Store
+inst/.DS_Store
+
+# Optional: ignore Rproj files if you want
+# *.Rproj

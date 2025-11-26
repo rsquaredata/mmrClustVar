@@ -432,6 +432,47 @@ mmrClustVarKPrototypes <- R6::R6Class(
             cat("=== Indicateurs d'adhésion (k-prototypes) ===\n")
             cat("numeric : adhesion = r^2(variable, profil numérique du cluster)\n")
             cat("categorical : adhesion = proportion de matches avec le profil catégoriel\n\n")
+            
+            # Indicateurs globaux
+            dist_globale <- mean(df$distance, na.rm = TRUE)
+            adh_globale  <- mean(df$adhesion, na.rm = TRUE)
+            
+            # Pour info : séparation num / cat (optionnel mais intéressant)
+            df_num <- df[df$metric_type == "numeric", ]
+            df_cat <- df[df$metric_type == "categorical", ]
+            
+            adh_num <- if (nrow(df_num) > 0) mean(df_num$adhesion, na.rm = TRUE) else NA_real_
+            adh_cat <- if (nrow(df_cat) > 0) mean(df_cat$adhesion, na.rm = TRUE) else NA_real_
+            
+            # Stats par cluster
+            stats_list <- lapply(split(df, df$cluster), function(dsub) {
+                c(
+                    cluster   = dsub$cluster[1],
+                    dist_mean = mean(dsub$distance, na.rm = TRUE),
+                    dist_min  = min(dsub$distance, na.rm = TRUE),
+                    dist_max  = max(dsub$distance, na.rm = TRUE),
+                    adh_mean  = mean(dsub$adhesion, na.rm = TRUE),
+                    adh_min   = min(dsub$adhesion, na.rm = TRUE),
+                    adh_max   = max(dsub$adhesion, na.rm = TRUE)
+                )
+            })
+            stats_par_cluster <- as.data.frame(do.call(rbind, stats_list))
+            stats_par_cluster$cluster <- as.integer(stats_par_cluster$cluster)
+            
+            cat(sprintf("Distance moyenne globale : %.3f\n", dist_globale))
+            cat(sprintf("Adhésion moyenne globale : %.3f\n", adh_globale))
+            if (!is.na(adh_num)) {
+                cat(sprintf("Adhésion moyenne (numeric) : %.3f\n", adh_num))
+            }
+            if (!is.na(adh_cat)) {
+                cat(sprintf("Adhésion moyenne (categorical) : %.3f\n", adh_cat))
+            }
+            cat("\n")
+            
+            cat("--- Statistiques par cluster ---\n")
+            print(stats_par_cluster)
+            
+            cat("\n--- Détail par variable ---\n")
             print(df)
             
             invisible(df)
