@@ -181,7 +181,7 @@ mmrClustVar <- R6::R6Class(
                 private$K <- K_i
                 engine_i  <- private$build_engine(X)
                 engine_i$fit(X)
-                res$inertia[i] <- engine_i$get_inertia.()
+                res$inertia[i] <- engine_i$get_inertia()
             }
             
             private$K            <- old_K
@@ -208,7 +208,7 @@ mmrClustVar <- R6::R6Class(
         #' Returns the intra-cluster inertia.
         get_inertia = function() {
             if (is.null(private$engine)) return(NA_real_)
-            private$engine$get_inertia.()
+            private$engine$get_inertia()
         },
         
         #' @description
