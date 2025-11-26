@@ -206,8 +206,16 @@ Kmodes <- R6::R6Class(
   
   public = list(
     
+    initialize = function(K = 2L, random_state = NULL) {
+      if (K < 2L) stop("K doit être supérieur ou égal à 2.")
+      
+      private$FMethod <- "kmodes"
+      private$FNbGroupes <- as.integer(K)
+      set.seed(random_state)
+    },
+    
     fit = function(X) {
-      X <- prepare_X(X, update_structure = TRUE)
+      X <- private$prepare_X(X, update_structure = TRUE)
       private$FX_active <- X
       
       res <- private$run_kmodes(X)

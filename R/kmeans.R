@@ -192,8 +192,17 @@ Kmeans <- R6::R6Class(
   
   public = list(
     
+    initialize = function(K = 2L, scale = TRUE, random_state = NULL) {
+      if (K < 2L) stop("K doit être supérieur ou égal à 2.")
+      
+      private$FMethod <- "kmeans"
+      private$FNbGroupes <- as.integer(K)
+      private$FScale     <- isTRUE(scale)
+      set.seed(random_state)
+    },
+    
     fit = function(X) {
-      X <- prepare_X(X, update_structure = TRUE)
+      X <- private$prepare_X(X, update_structure = TRUE)
       if (!isTRUE(private$FScale)) {
         X <- scale_active_variables(private$FNumCols)
       }
@@ -213,7 +222,21 @@ Kmeans <- R6::R6Class(
       if (is.null(private$FX_active)) {
         stop("Le modèle n'a pas encore été appris. Appelez fit() d'abord.")
       }
-      private$check_X_new
+      private$check_X_new(X_new)
+      
+      res_list <- vector("list", length = ncol(X_new))
+      for (j in seq_len(ncol(X_new))) {
+        res_list[[j]] <- private$predict_one_variable(
+          x_new    = X_new[[j]],
+          var_name = colnames(X_new)[j]
+        )
+      }
+      
+      private$FX_descr <- X_new # mémorisation des variables descriptives
+      
+      res <- do.call(rbind, res_list)
+      rownames(res) <- NULL
+      return(res)
     }
   )
 )

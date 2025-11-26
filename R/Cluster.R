@@ -17,6 +17,7 @@
     FConvergence = NULL,  # booléen
     FX_descr     = NULL,  # variables descriptives fournies à predict()
     FAlgorithme  = NULL,  # nom textuel de la variante exacte de l'algo
+    FMethod      = NULL,  # "k-means", "k-modes", "k-prototypes"
     
     # --- Helpers internes ---
     
@@ -39,7 +40,7 @@
       }
     },
     
-    check_X_new = function() {
+    check_X_new = function(X_new) {
       if (!is.data.frame(X_new)) {
         stop("X_new doit être un data.frame.")
       }
@@ -64,7 +65,25 @@
       }
       return(X)
     }
+  ),
+  
+  public = list(
     
+    # --- Print succinct ---
     
+    print = function(...) {
+      cat("Classe 'mmrClustVar'\n")
+      cat("  Méthode        :", private$FMethod, "\n")
+      cat("  K              :", private$FNbGroupes, "\n")
+      if (!is.null(private$FX_active)) {
+        cat("  Nb variables   :", ncol(private$FX_active), "\n")
+        cat("  Nb individus   :", nrow(private$FX_active), "\n")
+      }
+      if (!is.null(private$FInertia)) {
+        cat("  Inertie intra  :", format(private$FInertia, digits = 4), "\n")
+      }
+      cat("  Convergence    :", private$FConvergence, "\n")
+      invisible(self)
+    }
   )
 )

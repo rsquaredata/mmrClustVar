@@ -316,8 +316,20 @@ Kprototypes <- R6::R6Class(
   
   public = list(
     
+    initialize = function(K = 2L, lambda = 1, scale = TRUE, random_state = NULL) {
+      if (K < 2L) stop("K doit être supérieur ou égal à 2.")
+      if (lambda <= 0) stop("lambda doit être strictement positif.")
+      
+      private$FMethod <- "kprototypes"
+      private$FNbGroupes <- as.integer(K)
+      private$FScale     <- isTRUE(scale)
+      private$FLambda    <- lambda
+      
+      set.seed(random_state)
+    },
+    
     fit = function(X) {
-      X <- prepare_X(X, update_structure = TRUE)
+      X <- private$prepare_X(X, update_structure = TRUE)
       if (!isTRUE(private$FScale)) {
         X <- scale_active_variables(private$FNumCols)
         private$FX_active <- X
