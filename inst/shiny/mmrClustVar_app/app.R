@@ -3,23 +3,23 @@ library(mmrClustVar)
 
 ui <- fluidPage(
     
-    titlePanel("mmrClustVar — Clustering de variables"),
+    titlePanel("mmrClustVar — Variable clustering"),
     
     sidebarLayout(
         sidebarPanel(
             
-            h4("1. Données"),
+            h4("1. Data"),
             
             selectInput(
-                "data_source", "Source des données",
-                choices  = c("Jeu interne", "Fichier utilisateur (CSV/XLSX)"),
-                selected = "Jeu interne"
+                "data_source", "Data source",
+                choices  = c("Built-in dataset", "User file (CSV/XLSX)"),
+                selected = "Built-in dataset"
             ),
             
             conditionalPanel(
-                "input.data_source == 'Jeu interne'",
+                "input.data_source == 'Built-in dataset'",
                 selectInput(
-                    "builtin_dataset", "Jeu interne :",
+                    "builtin_dataset", "Built-in dataset:",
                     choices  = c(
                         "iris_num",
                         "iris_mixed",
@@ -36,26 +36,26 @@ ui <- fluidPage(
             ),
             
             conditionalPanel(
-                "input.data_source == 'Fichier utilisateur (CSV/XLSX)'",
-                fileInput("file", "Sélectionner un fichier"),
-                checkboxInput("header", "En-tête ? (CSV uniquement)", TRUE),
-                selectInput("sep", "Séparateur (CSV uniquement)",
+                "input.data_source == 'User file (CSV/XLSX)'",
+                fileInput("file", "Select a file"),
+                checkboxInput("header", "Header? (CSV only)", TRUE),
+                selectInput("sep", "Separator (CSV only)",
                             choices = c("," = ",", ";" = ";", "\t" = "\t")),
-                selectInput("encoding", "Encodage (CSV uniquement)",
+                selectInput("encoding", "Encoding (CSV only)",
                             choices = c("UTF-8", "latin1", "CP1252"))
             ),
             
             hr(),
             
-            h4("2. Sélection des variables"),
+            h4("2. Variable selection"),
             uiOutput("var_select"),
             
             hr(),
             
-            h4("3. Paramètres du modèle"),
+            h4("3. Model parameters"),
             
             selectInput(
-                "method", "Méthode",
+                "method", "Method",
                 choices = list(
                     "Auto"          = "auto",
                     "k-means"       = "kmeans",
@@ -67,60 +67,72 @@ ui <- fluidPage(
             ),
             
             numericInput(
-                "K", "Nombre de clusters K", value = 3, min = 2, step = 1
+                "K", "Number of clusters K", value = 3, min = 2, step = 1
             ),
             
             checkboxInput(
-                "scale", "Standardiser les variables numériques ?", TRUE
+                "scale", "Standardize numeric variables?", TRUE
             ),
             
             conditionalPanel(
                 "input.method == 'kprototypes' || input.method == 'kmedoids'",
-                numericInput("lambda", "λ (pondération parties catégorielles)",
-                             value = 1, min = 0.1, step = 0.1)
+                numericInput(
+                    "lambda",
+                    "λ (weight for categorical part)",
+                    value = 1, min = 0.1, step = 0.1
+                )
             ),
             
             hr(),
             
-            actionButton("run_fit",     "Lancer le clustering", class = "btn-primary"),
-            actionButton("run_predict", "Rattacher les variables supplémentaires"),
+            actionButton("run_fit",     "Run clustering", class = "btn-primary"),
+            actionButton("run_predict", "Attach supplementary variables"),
             width = 3
         ),
         
         mainPanel(
             tabsetPanel(
                 
-                tabPanel("Résumé",
-                         verbatimTextOutput("model_print"),
-                         hr(),
-                         verbatimTextOutput("model_summary")
+                tabPanel(
+                    "Summary",
+                    verbatimTextOutput("model_print"),
+                    hr(),
+                    verbatimTextOutput("model_summary")
                 ),
                 
-                tabPanel("Clusters",
-                         tableOutput("cluster_table"),
-                         tableOutput("cluster_sizes"),
-                         downloadButton("download_clusters", "Exporter les clusters (CSV)")
+                tabPanel(
+                    "Clusters",
+                    tableOutput("cluster_table"),
+                    tableOutput("cluster_sizes"),
+                    downloadButton("download_clusters", "Export clusters (CSV)")
                 ),
                 
-                tabPanel("Graphiques",
-                         selectInput("plot_type", "Type de graphique :",
-                                     choices = c("Inertie (méthode du coude)" = "inertia",
-                                                 "Clusters"                    = "clusters",
-                                                 "Adhésion"                    = "membership",
-                                                 "Profils / heatmaps"          = "profiles")),
-                         plotOutput("plot")
+                tabPanel(
+                    "Plots",
+                    selectInput(
+                        "plot_type", "Plot type:",
+                        choices = c(
+                            "Inertia (elbow method)" = "inertia",
+                            "Clusters"               = "clusters",
+                            "Membership"             = "membership",
+                            "Profiles / heatmaps"    = "profiles"
+                        )
+                    ),
+                    plotOutput("plot")
                 ),
                 
-                tabPanel("Variables supplémentaires",
-                         tableOutput("predict_table")
+                tabPanel(
+                    "Supplementary variables",
+                    tableOutput("predict_table")
                 ),
                 
-                tabPanel("Diagnostics & Export",
-                         verbatimTextOutput("diag_infos"),
-                         br(),
-                         downloadButton("download_report",  "Exporter le rapport texte"),
-                         br(), br(),
-                         downloadButton("download_bundle",  "Exporter tous les résultats (.zip)")
+                tabPanel(
+                    "Diagnostics & export",
+                    verbatimTextOutput("diag_infos"),
+                    br(),
+                    downloadButton("download_report",  "Export text report"),
+                    br(), br(),
+                    downloadButton("download_bundle",  "Export all results (.zip)")
                 )
             )
         )
@@ -129,16 +141,18 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
     
-    # --- Chargement des données ---------------------------------------------
+    # --- Data loading --------------------------------------------------------
     
     dataset <- reactive({
         
-        if (input$data_source == "Jeu interne") {
+        if (input$data_source == "Built-in dataset") {
             
             env <- new.env()
-            data(list    = input$builtin_dataset,
-                 package = "mmrClustVar",
-                 envir   = env)
+            data(
+                list    = input$builtin_dataset,
+                package = "mmrClustVar",
+                envir   = env
+            )
             
             get(input$builtin_dataset, envir = env)
             
@@ -150,35 +164,39 @@ server <- function(input, output, session) {
             if (tolower(ext) == "csv") {
                 utils::read.csv(
                     input$file$datapath,
-                    header   = isTRUE(input$header),
-                    sep      = input$sep,
+                    header       = isTRUE(input$header),
+                    sep          = input$sep,
                     fileEncoding = input$encoding,
                     stringsAsFactors = FALSE,
-                    check.names = TRUE
+                    check.names  = TRUE
                 )
             } else if (tolower(ext) %in% c("xls", "xlsx")) {
                 if (!requireNamespace("readxl", quietly = TRUE)) {
-                    stop("Le package 'readxl' est requis pour lire les fichiers Excel.")
+                    stop("The 'readxl' package is required to read Excel files.")
                 }
                 as.data.frame(readxl::read_excel(input$file$datapath))
             } else {
-                stop("Extension de fichier non supportée. Utilisez un CSV ou un XLS/XLSX.")
+                stop("Unsupported file extension. Please use CSV or XLS/XLSX.")
             }
         }
     })
     
     
-    # --- Sélection variables -------------------------------------------------
+    # --- Variable selection --------------------------------------------------
     
     output$var_select <- renderUI({
         df <- dataset()
         choices <- names(df)
         
         tagList(
-            selectInput("active_vars", "Variables actives",
-                        choices = choices, multiple = TRUE),
-            selectInput("suppl_vars", "Variables supplémentaires",
-                        choices = choices, multiple = TRUE)
+            selectInput(
+                "active_vars", "Active variables",
+                choices = choices, multiple = TRUE
+            ),
+            selectInput(
+                "suppl_vars", "Supplementary variables",
+                choices = choices, multiple = TRUE
+            )
         )
     })
     
@@ -195,30 +213,30 @@ server <- function(input, output, session) {
         X <- df[, input$active_vars, drop = FALSE]
         p_actives <- ncol(X)
         
-        # 1) Vérifier K <= nb variables actives
+        # 1) Check K <= nb of active variables
         if (input$K > p_actives) {
             showNotification(
-                "K ne peut pas dépasser le nombre de variables actives sélectionnées.",
+                "K cannot exceed the number of selected active variables.",
                 type = "error"
             )
             return()
         }
         
-        # 2) Types des variables actives
+        # 2) Types of active variables
         is_num  <- vapply(X, is.numeric, logical(1L))
         has_num <- any(is_num)
         
-        # 3) Gérer scale : ignoré si aucune variable numérique
+        # 3) Handle scale: ignored if there are no numeric variables
         scale_arg <- input$scale
         if (!has_num && isTRUE(scale_arg)) {
             scale_arg <- FALSE
             showNotification(
-                "Standardisation ignorée : toutes les variables actives sont qualitatives.",
+                "Standardization ignored: all active variables are categorical.",
                 type = "message"
             )
         }
         
-        # 4) Création de l'objet façade
+        # 4) Create facade object
         lambda_arg <- if (!is.null(input$lambda)) input$lambda else 1
         
         obj <- mmrClustVar$new(
@@ -228,13 +246,13 @@ server <- function(input, output, session) {
             lambda = lambda_arg
         )
         
-        # 5) Ajustement
+        # 5) Fit model
         res <- tryCatch({
             obj$fit(X)
             obj
         }, error = function(e) {
             showNotification(
-                paste("Erreur pendant le clustering :", conditionMessage(e)),
+                paste("Error during clustering:", conditionMessage(e)),
                 type = "error"
             )
             NULL
@@ -242,12 +260,12 @@ server <- function(input, output, session) {
         
         if (!is.null(res)) {
             model_obj(res)
-            showNotification("Clustering terminé.", type = "message")
+            showNotification("Clustering completed.", type = "message")
         }
     })
     
     
-    # --- Affichage résumé ----------------------------------------------------
+    # --- Summary display -----------------------------------------------------
     
     output$model_print <- renderPrint({
         obj <- model_obj()
@@ -262,7 +280,7 @@ server <- function(input, output, session) {
     })
     
     
-    # --- Tableau des clusters -----------------------------------------------
+    # --- Cluster tables ------------------------------------------------------
     
     output$cluster_table <- renderTable({
         obj <- model_obj()
@@ -280,7 +298,7 @@ server <- function(input, output, session) {
         }
         if (length(vars) != length(clusters)) {
             return(data.frame(
-                message = "Incohérence entre le nombre de variables actives et le nombre d'affectations de clusters."
+                message = "Mismatch between the number of active variables and the number of cluster assignments."
             ))
         }
         
@@ -304,7 +322,7 @@ server <- function(input, output, session) {
     })
     
     
-    # --- Rattachement des variables supplémentaires -------------------------
+    # --- Attach supplementary variables --------------------------------------
     
     observeEvent(input$run_predict, {
         
@@ -320,7 +338,7 @@ server <- function(input, output, session) {
             obj$predict(X_suppl)
         }, error = function(e) {
             showNotification(
-                paste("Erreur pendant le rattachement :", conditionMessage(e)),
+                paste("Error during prediction:", conditionMessage(e)),
                 type = "error"
             )
             return(NULL)
@@ -328,19 +346,19 @@ server <- function(input, output, session) {
         
         if (!is.null(pred)) {
             output$predict_table <- renderTable(pred)
-            showNotification("Variables supplémentaires rattachées.", type = "message")
+            showNotification("Supplementary variables attached.", type = "message")
         }
     })
     
     
-    # --- Graphiques ----------------------------------------------------------
+    # --- Plots ---------------------------------------------------------------
     
     output$plot <- renderPlot({
         obj <- model_obj()
         req(obj)
         
         if (input$plot_type == "inertia") {
-            # Courbe du coude : on recalcule le chemin d'inertie pour K = 2..p
+            # Elbow curve: recompute inertia path for K = 2..p
             df <- dataset()
             req(input$active_vars)
             X <- df[, input$active_vars, drop = FALSE]
@@ -351,7 +369,7 @@ server <- function(input, output, session) {
                 obj$plot(type = "inertia")
             } else {
                 plot.new()
-                title("Au moins 2 variables actives sont nécessaires pour tracer la courbe d'inertie.")
+                title("At least 2 active variables are required to draw the inertia curve.")
             }
             
         } else if (input$plot_type == "clusters") {
@@ -376,9 +394,9 @@ server <- function(input, output, session) {
         inert <- tryCatch(obj$get_inertia(),      error = function(e) NA)
         
         paste(
-            "Méthode    :", obj$get_method(), "\n",
-            "Convergence:", conv,             "\n",
-            "Inertie    :", inert
+            "Method    :", obj$get_method(), "\n",
+            "Converged :", conv,            "\n",
+            "Inertia   :", inert
         )
     })
     
@@ -391,13 +409,13 @@ server <- function(input, output, session) {
         },
         content = function(file) {
             obj <- model_obj()
-            validate(need(!is.null(obj), "Aucun modèle appris : lancez d'abord le clustering."))
+            validate(need(!is.null(obj), "No fitted model: please run clustering first."))
             
             vars     <- input$active_vars
             clusters <- obj$get_clusters()
             
             if (is.null(vars) || is.null(clusters) || length(vars) != length(clusters)) {
-                stop("Clusters indisponibles ou incohérents : vérifiez que le modèle a bien été appris.")
+                stop("Clusters unavailable or inconsistent: please check that the model has been fitted.")
             }
             
             df <- data.frame(
@@ -411,7 +429,7 @@ server <- function(input, output, session) {
     )
     
     
-    # --- Export rapport complet (texte) --------------------------------------
+    # --- Export full text report ---------------------------------------------
     
     output$download_report <- downloadHandler(
         filename = function() {
@@ -419,15 +437,15 @@ server <- function(input, output, session) {
         },
         content = function(file) {
             obj <- model_obj()
-            validate(need(!is.null(obj), "Aucun modèle appris : lancez d'abord le clustering."))
+            validate(need(!is.null(obj), "No fitted model: please run clustering first."))
             
             df       <- dataset()
             vars     <- input$active_vars
             clusters <- obj$get_clusters()
             
-            # 1) Résumé (print + summary)
+            # 1) Summary (print + summary)
             summary_txt <- c(
-                "===== Résumé du modèle =====",
+                "===== Model summary =====",
                 "",
                 capture.output(obj$print()),
                 "",
@@ -436,7 +454,7 @@ server <- function(input, output, session) {
             )
             
             # 2) Clusters
-            clusters_txt <- "===== Affectations des variables ====="
+            clusters_txt <- "===== Variable-to-cluster assignments ====="
             clust_df <- NULL
             if (!is.null(vars) && !is.null(clusters) && length(vars) == length(clusters)) {
                 clust_df <- data.frame(
@@ -446,7 +464,7 @@ server <- function(input, output, session) {
                 )
             }
             
-            # 3) Variables supplémentaires (si présentes)
+            # 3) Supplementary variables (if any)
             suppl_df <- NULL
             if (!is.null(input$suppl_vars) && length(input$suppl_vars) > 0L) {
                 X_suppl <- df[, input$suppl_vars, drop = FALSE]
@@ -456,56 +474,60 @@ server <- function(input, output, session) {
                 )
             }
             
-            # 4) Diagnostics simples
+            # 4) Simple diagnostics
             conv  <- tryCatch(obj$get_convergence(), error = function(e) NA)
             inert <- tryCatch(obj$get_inertia(),      error = function(e) NA)
             
             diag_txt <- c(
                 "===== Diagnostics =====",
-                paste("Méthode    :", obj$get_method()),
-                paste("Convergence:", conv),
-                paste("Inertie    :", inert),
+                paste("Method   :", obj$get_method()),
+                paste("Converged:", conv),
+                paste("Inertia  :", inert),
                 ""
             )
             
-            # 5) Écriture dans le fichier texte
+            # 5) Write to text file
             con <- file(file, open = "wt", encoding = "UTF-8")
             on.exit(close(con), add = TRUE)
             
-            writeLines("===== Rapport mmrClustVar =====", con)
+            writeLines("===== mmrClustVar report =====", con)
             writeLines("", con)
             
             writeLines(summary_txt, con)
             
             writeLines(clusters_txt, con)
             if (!is.null(clust_df)) {
-                utils::write.table(clust_df, con, sep = "\t",
-                                   row.names = FALSE, quote = FALSE)
+                utils::write.table(
+                    clust_df, con, sep = "\t",
+                    row.names = FALSE, quote = FALSE
+                )
                 writeLines("", con)
             } else {
-                writeLines("(Aucune affectation disponible)", con)
+                writeLines("(No cluster assignment available)", con)
                 writeLines("", con)
             }
             
             if (!is.null(suppl_df)) {
-                writeLines("===== Variables supplémentaires =====", con)
-                utils::write.table(suppl_df, con, sep = "\t",
-                                   row.names = FALSE, quote = FALSE)
+                writeLines("===== Supplementary variables =====", con)
+                utils::write.table(
+                    suppl_df, con, sep = "\t",
+                    row.names = FALSE, quote = FALSE
+                )
                 writeLines("", con)
             }
             
             writeLines(diag_txt, con)
             
-            writeLines("===== Graphiques =====", con)
+            writeLines("===== Plots =====", con)
             writeLines(
-                "Les graphiques (inertie, répartition des clusters, adhésion, profils) doivent être sauvegardés séparément depuis l'onglet 'Graphiques'.",
+                "Plots (inertia, cluster distribution, membership, profiles) must be saved separately from the 'Plots' tab.",
                 con
             )
         }
     )
     
     
-    # --- Export complet ZIP --------------------------------------------------
+    # --- Full ZIP export -----------------------------------------------------
     
     output$download_bundle <- downloadHandler(
         filename = function() {
@@ -513,7 +535,7 @@ server <- function(input, output, session) {
         },
         content = function(file) {
             obj <- model_obj()
-            validate(need(!is.null(obj), "Aucun modèle appris : lancez d'abord le clustering."))
+            validate(need(!is.null(obj), "No fitted model: please run clustering first."))
             
             df   <- dataset()
             vars <- input$active_vars
@@ -521,11 +543,11 @@ server <- function(input, output, session) {
             X    <- df[, vars, drop = FALSE]
             p    <- ncol(X)
             
-            # dossier temporaire
+            # Temporary directory
             bundle_dir <- file.path(tempdir(), paste0("mmrClustVar_bundle_", Sys.getpid()))
             if (!dir.exists(bundle_dir)) dir.create(bundle_dir, recursive = TRUE)
             
-            # 1) Résumé texte
+            # 1) Text summary
             summary_path <- file.path(bundle_dir, "summary.txt")
             summary_conn <- file(summary_path, open = "wt", encoding = "UTF-8")
             writeLines(capture.output(obj$print()),   summary_conn)
@@ -541,52 +563,58 @@ server <- function(input, output, session) {
                     cluster  = clusters,
                     stringsAsFactors = FALSE
                 )
-                utils::write.csv(clusters_df,
-                                 file = file.path(bundle_dir, "clusters.csv"),
-                                 row.names = FALSE, fileEncoding = "UTF-8")
+                utils::write.csv(
+                    clusters_df,
+                    file = file.path(bundle_dir, "clusters.csv"),
+                    row.names = FALSE, fileEncoding = "UTF-8"
+                )
             }
             
-            # 3) Prototypes / centres / medoids
+            # 3) Prototypes / centers / medoids
             centers <- obj$get_centers()
             saveRDS(centers, file = file.path(bundle_dir, "centers.rds"))
             
-            # 4) Courbe d'inertie (2..p)
+            # 4) Inertia path (2..p)
             if (p >= 2L) {
                 inertia_df <- obj$compute_inertia_path(K_seq = 2:p, X = X)
-                utils::write.csv(inertia_df,
-                                 file = file.path(bundle_dir, "inertia_path.csv"),
-                                 row.names = FALSE, fileEncoding = "UTF-8")
+                utils::write.csv(
+                    inertia_df,
+                    file = file.path(bundle_dir, "inertia_path.csv"),
+                    row.names = FALSE, fileEncoding = "UTF-8"
+                )
             }
             
-            # 5) Variables supplémentaires (si présentes)
+            # 5) Supplementary variables (if any)
             if (!is.null(input$suppl_vars) && length(input$suppl_vars) > 0L) {
                 X_suppl <- df[, input$suppl_vars, drop = FALSE]
                 suppl_df <- tryCatch(obj$predict(X_suppl), error = function(e) NULL)
                 if (!is.null(suppl_df)) {
-                    utils::write.csv(suppl_df,
-                                     file = file.path(bundle_dir, "suppl_predict.csv"),
-                                     row.names = FALSE, fileEncoding = "UTF-8")
+                    utils::write.csv(
+                        suppl_df,
+                        file = file.path(bundle_dir, "suppl_predict.csv"),
+                        row.names = FALSE, fileEncoding = "UTF-8"
+                    )
                 }
             }
             
-            # 6) README interne
+            # 6) Internal README
             readme_path <- file.path(bundle_dir, "README.txt")
             readme_conn <- file(readme_path, open = "wt", encoding = "UTF-8")
             writeLines(c(
-                "mmrClustVar — Export complet des résultats",
+                "mmrClustVar — Full export of results",
                 "",
-                "- summary.txt          : résumé textuel du modèle (print + summary)",
-                "- clusters.csv         : affectation des variables actives aux clusters",
-                "- centers.rds          : prototypes/centres/medoids des clusters (objet R)",
-                "- inertia_path.csv     : inertie intra-cluster pour K = 2..p (méthode du coude)",
-                "- suppl_predict.csv    : rattachement des variables supplémentaires (si présent)",
+                "- summary.txt      : text summary of the model (print + summary)",
+                "- clusters.csv     : active variables and their cluster assignments",
+                "- centers.rds      : prototypes/centers/medoids of clusters (R object)",
+                "- inertia_path.csv : within-cluster inertia for K = 2..p (elbow method)",
+                "- suppl_predict.csv: cluster attachment for supplementary variables (if any)",
                 "",
-                "Vous pouvez charger centers.rds dans R via :",
+                "You can load centers.rds in R via:",
                 "  centers <- readRDS('centers.rds')"
             ), readme_conn)
             close(readme_conn)
             
-            # 7) Création du ZIP
+            # 7) Create ZIP
             old_wd <- getwd()
             setwd(bundle_dir)
             on.exit(setwd(old_wd), add = TRUE)

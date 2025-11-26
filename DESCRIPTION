@@ -1,14 +1,18 @@
 Package: mmrClustVar
-Title: Clustering of Variables with K-means, K-modes and K-prototypes
+Title: Variable Clustering with K-means, K-modes, K-prototypes and K-medoids
 Version: 0.1.0
 Authors@R: 
     c(
       person(given = "Marin", family = "Nagy", role = "aut"),
       person(given = "Mazilda", family = "Zehraoui", role = "aut"),
-      person(given = "Rina", family = "Razafimahefa", role = c("aut", "cre")
+      person(given = "Rina", family = "Razafimahefa", role = c("aut", "cre"))
     )
-Description: R6 class and tools to cluster variables (numeric, categorical or mixed)
-    using k-means, k-modes and k-prototypes.
+Description: R6-based tools to cluster variables (numeric, categorical or mixed)
+    using k-means, k-modes, k-prototypes and k-medoids. The package provides a 
+    unified facade class delegating to specialised engine classes, along with 
+    interpretability tools (cluster membership indicators, profiles, inertia 
+    path for elbow analysis) and an interactive Shiny application for visual 
+    exploration and export of the results.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

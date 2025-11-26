@@ -1,52 +1,51 @@
-#' Classe de base pour le clustering de variables
+#' Base Class for Variable Clustering
 #'
-#' Classe R6 abstraite qui factorise le comportement commun aux
-#' différentes variantes de clustering de variables
-#' (k-means, k-modes, k-prototypes, k-medoids).
+#' Abstract R6 class that factors out the common behavior of the different
+#' variable clustering algorithms (k-means, k-modes, k-prototypes, k-medoids).
 #'
-#' Elle n'est pas destinée à être instanciée directement par l'utilisateur
-#' final, mais sert de classe mère pour les classes spécialisées.
+#' This class is not intended to be instantiated directly by end users.
+#' It serves as the parent class for all specialized algorithm classes.
 #'
 #' @docType class
 #' @name mmrClustVarBase
 #' @keywords internal
 #' @noRd
 #'
-#' @section Méthodes :
+#' @section Methods:
 #' \describe{
 #'   \item{\code{$initialize(method_name, K, scale = TRUE, lambda = 1, ...)}}{
-#'     Initialise les paramètres généraux du modèle.
+#'     Initializes the general model parameters.
 #'   }
 #'   \item{\code{$fit(X)}}{
-#'     Gère le flux global d'apprentissage (préparation des données,
-#'     appel à l'algorithme spécifique, stockage des résultats).
+#'     Handles the overall training workflow (data preparation,
+#'     call to the specific algorithm, storage of results).
 #'   }
 #'   \item{\code{$predict(X_new)}}{
-#'     Rattache des variables supplémentaires aux clusters appris.
+#'     Assigns additional variables to the learned clusters.
 #'   }
 #'   \item{\code{$print()}}{
-#'     Résumé succinct de l'objet.
+#'     Provides a short printed summary of the object.
 #'   }
 #'   \item{\code{$summary()}}{
-#'     Résumé détaillé des résultats.
+#'     Detailed summary of the results.
 #'   }
 #'   \item{\code{$plot(type)}}{
-#'     Visualisations associées au modèle.
+#'     Visualizations associated with the model.
 #'   }
 #'   \item{\code{$get_clusters()}}{
-#'     Renvoie l'affectation des variables aux clusters.
+#'     Returns the cluster assignment of variables.
 #'   }
 #'   \item{\code{$get_centers()}}{
-#'     Renvoie les prototypes des clusters.
+#'     Returns the cluster prototypes.
 #'   }
 #'   \item{\code{$get_method()}}{
-#'     Renvoie le nom de la méthode de clustering utilisée.
+#'     Returns the name of the clustering method used.
 #'   }
 #'   \item{\code{$get_K()}}{
-#'     Renvoie le nombre de clusters.
+#'     Returns the number of clusters.
 #'   }
 #'   \item{\code{$get_convergence()}}{
-#'     Renvoie l'indicateur de convergence de l'algorithme.
+#'     Returns the convergence indicator of the algorithm.
 #'   }
 #' }
 NULL
@@ -62,8 +61,9 @@ mmrClustVarBase <- R6::R6Class(
                               method_name = "base") {
             
             if (missing(K) || !is.numeric(K) || length(K) != 1L || K < 2) {
-                stop("[mmrClustVarBase] K doit être un entier >= 2")
+                stop("[mmrClustVarBase] K must be an integer >= 2")
             }
+            
             private$FNbGroupes   <- as.integer(K)
             private$FScale       <- isTRUE(scale)
             private$FLambda      <- as.numeric(lambda)
@@ -74,11 +74,12 @@ mmrClustVarBase <- R6::R6Class(
         },
         
         fit = function(X) {
-            # 1) Vérification / typage / structure
+            
+            # 1) Basic checks and internal structure definition
             X <- private$check_and_prepare_X(X, update_structure = TRUE)
             
-            # 2) Filtrage des lignes avec valeurs manquantes / non finies
-            #    (important pour prcomp() dans k-means / partie numérique de k-prototypes)
+            # 2) Filter out rows with missing or non-finite values
+            #    (important for prcomp() in k-means / numeric part of k-prototypes)
             num_idx <- private$FNumCols
             ok <- stats::complete.cases(X)
             
@@ -94,15 +95,15 @@ mmrClustVarBase <- R6::R6Class(
                 X <- X[ok, , drop = FALSE]
             }
             
-            # 3) Standardisation éventuelle des quantitatives
+            # 3) Optional standardization of numeric variables
             if (private$FScale) {
                 X <- private$scale_active_variables(X)
             }
             
-            # 4) Lancement de l'algo spécifique (classe fille)
+            # 4) Run the algorithm (implemented in child classes)
             res <- private$run_clustering(X)
             
-            # 5) Stockage des résultats communs
+            # 5) Store all shared results
             private$FX_active    <- X
             private$FClusters    <- res$clusters
             private$FCenters     <- res$centers
@@ -113,9 +114,11 @@ mmrClustVarBase <- R6::R6Class(
         },
         
         predict = function(X_new) {
+            
             if (is.null(private$FX_active)) {
-                stop("[mmrClustVarBase] fit() doit être appelé avant predict()")
+                stop("[mmrClustVarBase] fit() must be called before predict()")
             }
+            
             X_new <- private$check_and_prepare_X(X_new, update_structure = FALSE)
             
             res <- lapply(seq_along(X_new), function(j) {
@@ -126,66 +129,75 @@ mmrClustVarBase <- R6::R6Class(
             out <- do.call(rbind, res)
             rownames(out) <- NULL
             private$FX_new <- X_new
+            
             out
         },
         
         print = function(...) {
-            cat("Classe", class(self)[1L], "\n")
-            cat("  Méthode          :", private$FMethod, "\n")
-            cat("  K (nb groupes)   :", private$FNbGroupes, "\n")
-            cat("  Nb variables act :", length(private$FClusters), "\n")
+            cat("Class", class(self)[1L], "\n")
+            cat("  Method           :", private$FMethod, "\n")
+            cat("  K (n groups)     :", private$FNbGroupes, "\n")
+            cat("  # active vars    :", length(private$FClusters), "\n")
             cat("  Convergence      :", private$FConvergence, "\n")
-            cat("  Inertie intra    :", private$FInertia, "\n")
+            cat("  Within inertia   :", private$FInertia, "\n")
             invisible(self)
         },
         
         summary = function(...) {
             if (is.null(private$FClusters)) {
-                cat("Modèle non encore ajusté (fit() non appelé).\n")
+                cat("Model not fitted yet (fit() not called).\n")
                 return(invisible(NULL))
             }
             
-            cat("=== Résumé global ===\n")
-            cat("Méthode      :", private$FMethod, "\n")
-            cat("K            :", private$FNbGroupes, "\n")
-            cat("Convergence  :", private$FConvergence, "\n")
-            cat("Inertie      :", private$FInertia, "\n\n")
+            cat("=== Global Summary ===\n")
+            cat("Method      :", private$FMethod, "\n")
+            cat("K           :", private$FNbGroupes, "\n")
+            cat("Convergence :", private$FConvergence, "\n")
+            cat("Inertia     :", private$FInertia, "\n\n")
             
             clusters   <- private$FClusters
-            tab_taille <- table(clusters)
-            cat("=== Taille des clusters ===\n")
-            print(tab_taille)
+            tab_sizes  <- table(clusters)
+            cat("=== Cluster Sizes ===\n")
+            print(tab_sizes)
             cat("\n")
             
-            # hook pour les classes filles : métriques d'adhésion spécifiques
+            # Hook for child classes: specific membership metrics
             private$summary_membership()
             
             invisible(NULL)
         },
         
         plot = function(type = c("inertia", "clusters", "membership", "profiles"), ...) {
+            
             type <- match.arg(type)
             
             if (is.null(private$FClusters)) {
-                stop("[mmrClustVarBase] fit() doit être appelé avant plot().")
+                stop("[mmrClustVarBase] fit() must be called before plot().")
             }
             
             if (type == "clusters") {
+                
                 barplot(
                     table(private$FClusters),
-                    main = sprintf("Répartition des variables (%s)", private$FMethod),
+                    main = sprintf("Variable distribution (%s)", private$FMethod),
                     xlab = "Cluster",
-                    ylab = "Nombre de variables"
+                    ylab = "Number of variables"
                 )
+                
             } else if (type == "inertia") {
+                
                 barplot(
                     private$FInertia,
-                    main = sprintf("Inertie intra-cluster (%s)", private$FMethod),
-                    ylab = "Inertie"
+                    main = sprintf("Within-cluster inertia (%s)", private$FMethod),
+                    ylab = "Inertia"
                 )
+                
             } else if (type == "membership") {
+                
                 private$plot_membership()
+                
             } else if (type == "profiles") {
+                
                 private$plot_profiles()
             }
             
@@ -217,11 +229,13 @@ mmrClustVarBase <- R6::R6Class(
         FCatCols     = NULL,
         
         check_and_prepare_X = function(X, update_structure = TRUE) {
+            
             if (!is.data.frame(X)) {
                 X <- as.data.frame(X)
             }
+            
             if (ncol(X) == 0L) {
-                stop("[mmrClustVarBase] X doit contenir au moins une colonne.")
+                stop("[mmrClustVarBase] X must contain at least one column.")
             }
             
             num_idx <- which(vapply(X, is.numeric, logical(1L)))
@@ -236,7 +250,7 @@ mmrClustVarBase <- R6::R6Class(
                 private$FCatCols <- cat_idx
             }
             
-            # conversion caractères -> facteur
+            # Convert character → factor
             for (j in cat_idx) {
                 if (!is.factor(X[[j]])) {
                     X[[j]] <- factor(X[[j]])
@@ -261,23 +275,23 @@ mmrClustVarBase <- R6::R6Class(
         },
         
         run_clustering = function(X) {
-            stop("[mmrClustVarBase] run_clustering() doit être redéfini dans une classe fille.")
+            stop("[mmrClustVarBase] run_clustering() must be implemented in a child class.")
         },
         
         predict_one_variable = function(x_new, var_name) {
-            stop("[mmrClustVarBase] predict_one_variable() doit être redéfini dans une classe fille.")
+            stop("[mmrClustVarBase] predict_one_variable() must be implemented in a child class.")
         },
         
         summary_membership = function() {
-            cat("(Pas d'indicateurs d'adhésion spécifiques définis pour cette classe.)\n")
+            cat("(No membership indicators defined for this class.)\n")
         },
         
         plot_membership = function() {
-            stop("[mmrClustVarBase] plot(type = 'membership') non défini pour cette classe.")
+            stop("[mmrClustVarBase] plot(type = 'membership') not implemented for this class.")
         },
         
         plot_profiles = function() {
-            warning("[mmrClustVarBase] plot(type = 'profiles') non défini pour cette classe, aucun graphique produit.")
+            warning("[mmrClustVarBase] plot(type = 'profiles') not implemented; no plot produced.")
         }
     )
 )

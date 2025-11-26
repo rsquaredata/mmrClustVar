@@ -1,21 +1,21 @@
 # data-raw/prepare_datasets.R
-# Création des jeux de données intégrés au package mmrClustVar
+# Creation of the datasets bundled with the mmrClustVar package
 
 library(usethis)
 
 ### ---------------------------
-###  Jeux NUMÉRIQUES
+###  NUMERIC DATASETS
 ### ---------------------------
 
-iris_num <- iris[, 1:4]
-mtcars_num <- mtcars
+iris_num     <- iris[, 1:4]
+mtcars_num   <- mtcars
 airquality_num <- airquality
 
 ### ---------------------------
-###  Jeux CATÉGORIELS
+###  CATEGORICAL DATASETS
 ### ---------------------------
 
-# Arthritis (package vcd)
+# Arthritis (from package vcd)
 if (!requireNamespace("vcd", quietly = TRUE)) {
     install.packages("vcd")
 }
@@ -23,14 +23,14 @@ library(vcd)
 data("Arthritis")
 arthritis_cat <- Arthritis
 
-# Titanic (package titanic)
+# Titanic (from package titanic)
 if (!requireNamespace("titanic", quietly = TRUE)) {
     install.packages("titanic")
 }
 library(titanic)
 titanic_cat <- titanic::titanic_train
 
-# HouseVotes84 (package mlbench)
+# HouseVotes84 (from package mlbench)
 if (!requireNamespace("mlbench", quietly = TRUE)) {
     install.packages("mlbench")
 }
@@ -39,21 +39,21 @@ data("HouseVotes84", package = "mlbench")
 housevotes_cat <- HouseVotes84
 
 ### ---------------------------
-###  Jeux MIXTES
+###  MIXED DATASETS
 ### ---------------------------
 
-# iris mixte = Species en caractère
+# iris_mixed = Species as character
 iris_mixed <- iris
 iris_mixed$Species <- as.character(iris$Species)
 
-# Credit (package ISLR) - jeu mixte
+# Credit (from package ISLR) – mixed dataset
 if (!requireNamespace("ISLR", quietly = TRUE)) {
     install.packages("ISLR")
 }
 library(ISLR)
 credit_mix <- ISLR::Credit
 
-# AdultUCI (package arules)
+# AdultUCI (from package arules)
 if (!requireNamespace("arules", quietly = TRUE)) {
     install.packages("arules")
 }
@@ -61,11 +61,12 @@ library(arules)
 data("AdultUCI")
 adult <- AdultUCI
 
+# Sample of 200 rows from AdultUCI
 set.seed(1)
 adult_small <- adult[sample(nrow(adult), 200), ]
 
 ### ---------------------------
-###  Sauvegarde dans /data
+###  Save datasets into /data
 ### ---------------------------
 
 usethis::use_data(

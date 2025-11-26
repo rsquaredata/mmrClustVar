@@ -3,52 +3,241 @@
 \docType{class}
 \name{mmrClustVar}
 \alias{mmrClustVar}
-\title{Clustering de variables (façade R6)}
+\title{Variable Clustering (R6 Facade)}
 \description{
-Classe R6 "façade" qui encapsule les différentes implémentations
-de clustering de variables (k-means, k-modes, k-prototypes, k-medoids)
-et fournit une interface unique pour l'utilisateur.
+R6 "facade" class that encapsulates the different implementations of
+variable clustering (k-means, k-modes, k-prototypes, k-medoids),
+and provides a unified interface for the end user.
 }
 \details{
-L'objet se crée avec \code{mmrClustVar$new(...)} puis expose
-les méthodes principales \code{$fit()}, \code{$predict()},
-\code{$print()}, \code{$summary()} et \code{$plot()}.
+The object is created using \code{mmrClustVar$new(...)} and exposes
+the main methods: \code{$fit()}, \code{$predict()},
+\code{$print()}, \code{$summary()}, and \code{$plot()}.
 }
-\section{Méthodes principales }{
+\section{Methods}{
+\subsection{Public methods}{
+\itemize{
+\item \href{#method-mmrClustVar-new}{\code{mmrClustVar$new()}}
+\item \href{#method-mmrClustVar-fit}{\code{mmrClustVar$fit()}}
+\item \href{#method-mmrClustVar-predict}{\code{mmrClustVar$predict()}}
+\item \href{#method-mmrClustVar-print}{\code{mmrClustVar$print()}}
+\item \href{#method-mmrClustVar-summary}{\code{mmrClustVar$summary()}}
+\item \href{#method-mmrClustVar-plot}{\code{mmrClustVar$plot()}}
+\item \href{#method-mmrClustVar-compute_inertia_path}{\code{mmrClustVar$compute_inertia_path()}}
+\item \href{#method-mmrClustVar-get_clusters}{\code{mmrClustVar$get_clusters()}}
+\item \href{#method-mmrClustVar-get_centers}{\code{mmrClustVar$get_centers()}}
+\item \href{#method-mmrClustVar-get_inertia}{\code{mmrClustVar$get_inertia()}}
+\item \href{#method-mmrClustVar-get_convergence}{\code{mmrClustVar$get_convergence()}}
+\item \href{#method-mmrClustVar-get_method}{\code{mmrClustVar$get_method()}}
+\item \href{#method-mmrClustVar-get_K}{\code{mmrClustVar$get_K()}}
+\item \href{#method-mmrClustVar-clone}{\code{mmrClustVar$clone()}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-new"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-new}{}}}
+\subsection{Method \code{new()}}{
+Constructor of the facade class.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$new(
+  method = c("kmeans", "kmodes", "kprototypes", "kmedoids", "auto"),
+  K,
+  scale = TRUE,
+  lambda = 1,
+  ...
+)}\if{html}{\out{</div>}}
+}
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{$new(method = c("kmeans", "kmodes", "kprototypes",
-                             "kmedoids", "auto"),
-                 K,
-                 scale = TRUE,
-                 lambda = 1, ...)}}{
-Constructeur. Initialise la méthode, le nombre de clusters,
-l'option de standardisation et le paramètre \code{lambda}.
+\item{\code{method}}{Variable clustering method:
+"kmeans", "kmodes", "kprototypes", "kmedoids", or "auto".}
+
+\item{\code{K}}{Number of clusters (integer >= 2).}
+
+\item{\code{scale}}{If TRUE, standardizes the numeric variables.}
+
+\item{\code{lambda}}{Weighting parameter for categorical distances
+(used in k-prototypes and mixed k-medoids).}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-fit"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-fit}{}}}
+\subsection{Method \code{fit()}}{
+Fits the model on a set of active variables.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$fit(X)}\if{html}{\out{</div>}}
 }
 
-\item{\code{$fit(X)}}{
-Apprend un modèle de clustering de variables à partir des
-variables actives fournies dans \code{X}.
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{X}}{A data.frame where columns are variables.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-predict"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-predict}{}}}
+\subsection{Method \code{predict()}}{
+Assigns new variables to the existing clusters.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$predict(X_new)}\if{html}{\out{</div>}}
 }
 
-\item{\code{$predict(X_new)}}{
-Rattache des variables supplémentaires aux clusters existants.
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{X_new}}{A data.frame of new variables.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-print"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-print}{}}}
+\subsection{Method \code{print()}}{
+Short printed summary of the object + internal engine.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$print(...)}\if{html}{\out{</div>}}
 }
 
-\item{\code{$print()}}{
-Affiche un résumé succinct du modèle (méthode, K, nb de variables,
-inertie, convergence).
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-summary"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-summary}{}}}
+\subsection{Method \code{summary()}}{
+Detailed summary: cluster sizes, inertia, and indicators.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$summary(...)}\if{html}{\out{</div>}}
 }
 
-\item{\code{$summary()}}{
-Affiche un résumé détaillé (tailles de clusters, inerties,
-indicateurs d'adhésion, etc.).
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-plot"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-plot}{}}}
+\subsection{Method \code{plot()}}{
+Main plots (inertia, clusters, membership, profiles).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$plot(
+  type = c("inertia", "clusters", "membership", "profiles"),
+  ...
+)}\if{html}{\out{</div>}}
 }
 
-\item{\code{$plot(type = c("inertia", "clusters", "membership",
-                             "profiles"))}}{
-Génère des graphiques pour l'analyse du modèle.
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{type}}{One of:
+"inertia", "clusters", "membership", "profiles".}
+}
+\if{html}{\out{</div>}}
 }
 }
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-compute_inertia_path"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-compute_inertia_path}{}}}
+\subsection{Method \code{compute_inertia_path()}}{
+Computes the intra-cluster inertia for multiple values of K.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$compute_inertia_path(K_seq, X = NULL)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{K_seq}}{Vector of integers.}
+
+\item{\code{X}}{Optional data.frame. If NULL, uses the X from fit().}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+data.frame(K, inertia)
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-get_clusters"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-get_clusters}{}}}
+\subsection{Method \code{get_clusters()}}{
+Returns the variable cluster assignments.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_clusters()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-get_centers"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-get_centers}{}}}
+\subsection{Method \code{get_centers()}}{
+Returns the cluster prototypes (centers / modes / medoids).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_centers()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-get_inertia"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-get_inertia}{}}}
+\subsection{Method \code{get_inertia()}}{
+Returns the intra-cluster inertia.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_inertia()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-get_convergence"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-get_convergence}{}}}
+\subsection{Method \code{get_convergence()}}{
+Returns the convergence status.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_convergence()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-get_method"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-get_method}{}}}
+\subsection{Method \code{get_method()}}{
+Returns the requested method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_method()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-get_K"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-get_K}{}}}
+\subsection{Method \code{get_K()}}{
+Returns the requested number of clusters K.
+Internal helper: build the appropriate engine
+depending on the selected method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_K()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-clone}{}}}
+\subsection{Method \code{clone()}}{
+The objects of this class are cloneable with this method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$clone(deep = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{deep}}{Whether to make a deep clone.}
+}
+\if{html}{\out{</div>}}
+}
+}
+}

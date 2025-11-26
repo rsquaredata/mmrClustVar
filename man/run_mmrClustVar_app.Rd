@@ -7,7 +7,7 @@
 run_mmrClustVar_app()
 }
 \value{
-This function is called for its side-effect (launching the app).
+This function is called for its side effect (launching the app).
 }
 \description{
 This function launches the Shiny app included in the package,

@@ -1,12 +1,12 @@
-#' Clustering de variables (façade R6)
+#' Variable Clustering (R6 Facade)
 #'
-#' Classe R6 "façade" qui encapsule les différentes implémentations
-#' de clustering de variables (k-means, k-modes, k-prototypes, k-medoids)
-#' et fournit une interface unique pour l'utilisateur.
+#' R6 "facade" class that encapsulates the different implementations of
+#' variable clustering (k-means, k-modes, k-prototypes, k-medoids),
+#' and provides a unified interface for the end user.
 #'
-#' L'objet se crée avec \code{mmrClustVar$new(...)} puis expose
-#' les méthodes principales \code{$fit()}, \code{$predict()},
-#' \code{$print()}, \code{$summary()} et \code{$plot()}.
+#' The object is created using \code{mmrClustVar$new(...)} and exposes
+#' the main methods: \code{$fit()}, \code{$predict()},
+#' \code{$print()}, \code{$summary()}, and \code{$plot()}.
 #'
 #' @docType class
 #' @name mmrClustVar
@@ -19,13 +19,14 @@ mmrClustVar <- R6::R6Class(
     public = list(
         
         #' @description
-        #' Constructeur de la façade.
+        #' Constructor of the facade class.
         #'
-        #' @param method Méthode de clustering de variables :
-        #'   "kmeans", "kmodes", "kprototypes", "kmedoids" ou "auto".
-        #' @param K Nombre de clusters (entier >= 2).
-        #' @param scale Si TRUE, standardise les variables numériques.
-        #' @param lambda Pondération pour les distances catégorielles (k-prototypes, k-medoids mixtes).
+        #' @param method Variable clustering method:
+        #'   "kmeans", "kmodes", "kprototypes", "kmedoids", or "auto".
+        #' @param K Number of clusters (integer >= 2).
+        #' @param scale If TRUE, standardizes the numeric variables.
+        #' @param lambda Weighting parameter for categorical distances
+        #'   (used in k-prototypes and mixed k-medoids).
         initialize = function(
         method = c("kmeans", "kmodes", "kprototypes", "kmedoids", "auto"),
         K,
@@ -44,21 +45,22 @@ mmrClustVar <- R6::R6Class(
         },
         
         #' @description
-        #' Ajuste le modèle sur un jeu de variables actives.
+        #' Fits the model on a set of active variables.
         #'
-        #' @param X data.frame de variables (colonnes = variables).
+        #' @param X A data.frame where columns are variables.
         fit = function(X) {
             if (!is.data.frame(X)) {
                 X <- as.data.frame(X)
             }
             
+            # Build engine if not already created (or if method = "auto")
             if (is.null(private$engine) || identical(private$method, "auto")) {
                 private$engine <- private$build_engine(X)
             }
             
             private$engine$fit(X)
             
-            # mémoriser X pour la courbe d'inertie
+            # Store X for inertia path computation
             private$X_last       <- X
             private$inertia_grid <- NULL
             
@@ -66,87 +68,90 @@ mmrClustVar <- R6::R6Class(
         },
         
         #' @description
-        #' Affecte des variables supplémentaires aux clusters existants.
+        #' Assigns new variables to the existing clusters.
         #'
-        #' @param X_new data.frame de nouvelles variables (colonnes).
+        #' @param X_new A data.frame of new variables.
         predict = function(X_new) {
             if (is.null(private$engine)) {
-                stop("[mmrClustVar] predict() appelé avant fit().")
+                stop("[mmrClustVar] predict() called before fit().")
             }
             private$engine$predict(X_new)
         },
         
         #' @description
-        #' Résumé court de l'objet + moteur interne.
+        #' Short printed summary of the object + internal engine.
         print = function(...) {
-            cat("Classe 'mmrClustVar'\n")
-            cat("  Méthode demandée :", private$method, "\n")
+            cat("Class 'mmrClustVar'\n")
+            cat("  Requested method :", private$method, "\n")
             cat("  K                :", private$K, "\n")
             cat("  scale            :", private$scale, "\n")
             cat("  lambda           :", private$lambda, "\n\n")
             
             if (!is.null(private$engine)) {
-                cat("Résumé du moteur interne :\n")
+                cat("Internal engine summary:\n")
                 private$engine$print()
             } else {
-                cat("(Aucun modèle encore ajusté, appelez $fit(X)).\n")
+                cat("(No model fitted yet — call $fit(X)).\n")
             }
             invisible(self)
         },
         
         #' @description
-        #' Résumé détaillé : tailles des clusters, inertie et indicateurs.
+        #' Detailed summary: cluster sizes, inertia, and indicators.
         summary = function(...) {
             if (is.null(private$engine)) {
-                cat("[mmrClustVar] summary() : aucun modèle (fit() non appelé).\n")
+                cat("[mmrClustVar] summary(): no fitted model.\n")
                 return(invisible(NULL))
             }
             private$engine$summary(...)
         },
         
         #' @description
-        #' Graphiques principaux (inertie, clusters, adhésions, profils).
+        #' Main plots (inertia, clusters, membership, profiles).
         #'
-        #' @param type "inertia", "clusters", "membership" ou "profiles".
+        #' @param type One of:
+        #'   "inertia", "clusters", "membership", "profiles".
         plot = function(type = c("inertia", "clusters", "membership", "profiles"),
                         ...) {
+            
             type <- match.arg(type)
             
             if (is.null(private$engine)) {
-                stop("[mmrClustVar] plot() : aucun modèle (fit() non appelé).")
+                stop("[mmrClustVar] plot(): no fitted model.")
             }
             
-            # si on a déjà calculé une grille d'inertie et qu'on demande "inertia"
+            # If inertia grid already computed
             if (identical(type, "inertia") && !is.null(private$inertia_grid)) {
                 df <- private$inertia_grid
                 graphics::plot(
                     df$K, df$inertia,
                     type = "b",
                     xlab = "K",
-                    ylab = "Inertie intra-cluster",
-                    main = sprintf("Courbe d'inertie (%s)", private$method)
+                    ylab = "Within-cluster inertia",
+                    main = sprintf("Inertia curve (%s)", private$method)
                 )
                 return(invisible(NULL))
             }
             
-            # sinon on délègue à la classe fille
+            # Otherwise, delegate to engine
             private$engine$plot(type = type, ...)
         },
         
         #' @description
-        #' Calcule l'inertie intra pour plusieurs valeurs de K.
+        #' Computes the intra-cluster inertia for multiple values of K.
         #'
-        #' @param K_seq vecteur d'entiers (valeurs de K à tester).
-        #' @param X data.frame (optionnel). Si NULL, réutilise le X de fit().
+        #' @param K_seq Vector of integers.
+        #' @param X Optional data.frame. If NULL, uses the X from fit().
         #' @return data.frame(K, inertia)
         compute_inertia_path = function(K_seq, X = NULL) {
-            # récupère X si non fourni
+            
+            # Retrieve X if not provided
             if (is.null(X)) {
                 X <- private$X_last
             }
             if (is.null(X)) {
-                stop("[mmrClustVar] compute_inertia_path() : aucun X disponible. ",
-                     "Fournis X ou appelle d'abord $fit(X).")
+                stop("[mmrClustVar] compute_inertia_path(): no X available. ",
+                     "Provide X or call $fit(X) first.")
             }
             if (!is.data.frame(X)) {
                 X <- as.data.frame(X)
@@ -154,12 +159,13 @@ mmrClustVar <- R6::R6Class(
             
             p <- ncol(X)
             
-            # K entre 2 et p
+            # Keep only valid K (between 2 and p)
             K_seq <- sort(unique(as.integer(K_seq)))
             K_seq <- K_seq[!is.na(K_seq) & K_seq >= 2L & K_seq <= p]
+            
             if (length(K_seq) == 0L) {
-                stop("[mmrClustVar] compute_inertia_path() : K_seq doit contenir ",
-                     "au moins un entier entre 2 et ", p, ".")
+                stop("[mmrClustVar] compute_inertia_path(): K_seq must contain ",
+                     "at least one integer between 2 and ", p, ".")
             }
             
             old_K <- private$K
@@ -169,55 +175,55 @@ mmrClustVar <- R6::R6Class(
                 inertia = NA_real_
             )
             
+            # Loop to compute inertia for each K
             for (i in seq_along(K_seq)) {
                 K_i <- K_seq[i]
                 private$K <- K_i
                 engine_i  <- private$build_engine(X)
                 engine_i$fit(X)
-                # get_inertia() est défini dans mmrClustVarBase
-                res$inertia[i] <- engine_i$get_inertia()
+                res$inertia[i] <- engine_i$get_inertia.()
             }
             
-            private$K          <- old_K
+            private$K            <- old_K
             private$inertia_grid <- res
             
             res
         },
         
         #' @description
-        #' Affectations des variables aux clusters.
+        #' Returns the variable cluster assignments.
         get_clusters = function() {
             if (is.null(private$engine)) return(NULL)
             private$engine$get_clusters()
         },
         
         #' @description
-        #' Prototypes (centres/modes/medoids) des clusters.
+        #' Returns the cluster prototypes (centers / modes / medoids).
         get_centers = function() {
             if (is.null(private$engine)) return(NULL)
             private$engine$get_centers()
         },
         
         #' @description
-        #' Inertie intra du modèle courant.
+        #' Returns the intra-cluster inertia.
         get_inertia = function() {
             if (is.null(private$engine)) return(NA_real_)
-            private$engine$get_inertia()
+            private$engine$get_inertia.()
         },
         
         #' @description
-        #' Statut de convergence du modèle courant.
+        #' Returns the convergence status.
         get_convergence = function() {
             if (is.null(private$engine)) return(NA)
             private$engine$get_convergence()
         },
         
         #' @description
-        #' Méthode demandée à la création.
+        #' Returns the requested method.
         get_method = function() private$method,
         
         #' @description
-        #' Nombre de clusters K demandé.
+        #' Returns the requested number of clusters K.
         get_K = function() private$K
     ),
     
@@ -228,18 +234,22 @@ mmrClustVar <- R6::R6Class(
         scale        = NULL,
         lambda       = NULL,
         
-        engine       = NULL,   # instance de mmrClustVar*
-        X_last       = NULL,   # dernier X passé à fit()
-        inertia_grid = NULL,   # data.frame(K, inertia)
+        engine       = NULL,
+        X_last       = NULL,
+        inertia_grid = NULL,
         
-        # fabrique le moteur interne en fonction de method / types
+        #' Internal helper: build the appropriate engine
+        #' depending on the selected method.
         build_engine = function(X) {
+            
             method <- private$method
             K      <- private$K
             scale  <- private$scale
             lambda <- private$lambda
             
+            # Automatic method selection based on variable types
             if (identical(method, "auto")) {
+                
                 is_num <- vapply(X, is.numeric, logical(1L))
                 is_cat <- (!is_num) & vapply(
                     X,
@@ -255,35 +265,20 @@ mmrClustVar <- R6::R6Class(
                     method_effective <- "kprototypes"
                 }
                 
-                cat("[mmrClustVar] method = 'auto' -> méthode choisie :",
-                    method_effective, "\n")
+                cat("[mmrClustVar] method = 'auto' → selected:", method_effective, "\n")
+                
             } else {
                 method_effective <- method
             }
             
+            # Create appropriate engine
             engine <- switch(
                 method_effective,
-                "kmeans" = mmrClustVarKMeans$new(
-                    K      = K,
-                    scale  = scale,
-                    lambda = lambda
-                ),
-                "kmodes" = mmrClustVarKModes$new(
-                    K      = K,
-                    scale  = scale,
-                    lambda = lambda
-                ),
-                "kprototypes" = mmrClustVarKPrototypes$new(
-                    K      = K,
-                    scale  = scale,
-                    lambda = lambda
-                ),
-                "kmedoids" = mmrClustVarKMedoids$new(
-                    K      = K,
-                    scale  = scale,
-                    lambda = lambda
-                ),
-                stop("[mmrClustVar] Méthode non supportée : ", method_effective)
+                "kmeans"      = mmrClustVarKMeans$new(K = K, scale = scale, lambda = lambda),
+                "kmodes"      = mmrClustVarKModes$new(K = K, scale = scale, lambda = lambda),
+                "kprototypes" = mmrClustVarKPrototypes$new(K = K, scale = scale, lambda = lambda),
+                "kmedoids"    = mmrClustVarKMedoids$new(K = K, scale = scale, lambda = lambda),
+                stop("[mmrClustVar] Unsupported method:", method_effective)
             )
             
             engine

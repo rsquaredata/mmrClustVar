@@ -4,9 +4,9 @@ mmrClustVarKPrototypes <- R6::R6Class(
     
     public = list(
         initialize = function(K, scale = TRUE, lambda = 1, ...) {
-            # lambda > 0 : pondération de la partie catégorielle
+            # lambda > 0: weight for the categorical part
             if (!is.numeric(lambda) || length(lambda) != 1L || lambda <= 0) {
-                stop("[mmrClustVarKPrototypes] lambda doit être un réel > 0.")
+                stop("[mmrClustVarKPrototypes] lambda must be a numeric > 0.")
             }
             
             super$initialize(
@@ -21,36 +21,36 @@ mmrClustVarKPrototypes <- R6::R6Class(
     private = list(
         
         # ================================
-        # 1. ALGORITHME K-PROTOTYPES VAR
+        # 1. VARIABLE K-PROTOTYPES ALGORITHM
         # ================================
-        # Représentation des prototypes :
-        # centers[[k]] est une liste avec :
-        #   $num : vecteur de longueur n (profil numérique, type k-means / composante latente)
-        #   $cat : vecteur de longueur n (profil catégoriel, type mode par individu)
+        # Prototypes representation:
+        # centers[[k]] is a list with:
+        #   $num : numeric vector of length n (latent numeric profile, k-means-like)
+        #   $cat : character vector of length n (categorical profile, mode per individual)
         #
         run_clustering = function(X) {
-            # X : data.frame mixte (numérique + factor/character),
-            # déjà passé par check_and_prepare_X() puis éventuellement standardisé.
+            # X: mixed data.frame (numeric + factor/character),
+            # already checked by check_and_prepare_X() and possibly scaled.
             
             n <- nrow(X)
             p <- ncol(X)
             K <- private$FNbGroupes
             
             if (K > p) {
-                stop("[mmrClustVarKPrototypes] K ne peut pas dépasser le nombre de variables.")
+                stop("[mmrClustVarKPrototypes] K cannot exceed the number of variables.")
             }
             
             num_idx <- private$FNumCols
             cat_idx <- private$FCatCols
             
-            # matrice numérique (éventuellement vide)
+            # numeric matrix (possibly empty)
             X_num <- if (length(num_idx) > 0L) {
                 as.matrix(X[, num_idx, drop = FALSE])
             } else {
                 NULL
             }
             
-            # matrice catégorielle (éventuellement vide)
+            # categorical matrix (possibly empty)
             X_cat <- if (length(cat_idx) > 0L) {
                 as.matrix(as.data.frame(
                     lapply(X[, cat_idx, drop = FALSE], as.character),
@@ -65,19 +65,19 @@ mmrClustVarKPrototypes <- R6::R6Class(
             lambda    <- private$FLambda
             
             # =====================
-            # Initialisation simple
+            # Simple initialization
             # =====================
             set.seed(123)
-            noyaux <- sample(seq_len(p), size = K, replace = FALSE)
+            seeds <- sample(seq_len(p), size = K, replace = FALSE)
             clusters <- rep(NA_integer_, p)
-            clusters[noyaux] <- seq_len(K)
+            clusters[seeds] <- seq_len(K)
             
-            idx_other <- setdiff(seq_len(p), noyaux)
-            if (length(idx_other) > 0L) {
-                clusters[idx_other] <- sample(seq_len(K), size = length(idx_other), replace = TRUE)
+            others <- setdiff(seq_len(p), seeds)
+            if (length(others) > 0L) {
+                clusters[others] <- sample(seq_len(K), size = length(others), replace = TRUE)
             }
             
-            # Assurer aucun cluster vide
+            # Ensure no empty cluster
             for (k in seq_len(K)) {
                 if (!any(clusters == k)) {
                     j_free <- which.max(tabulate(clusters))
@@ -85,12 +85,12 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 }
             }
             
-            # prototypes : liste de K listes (num, cat)
+            # prototypes: list of K lists (num, cat)
             centers <- vector("list", K)
             
-            # --- helpers internes ---
+            # --- internal helpers ---
             
-            # Numérique : même logique que k-means var
+            # Numeric part: same idea as variable k-means
             compute_Zk <- function(cols_k_num) {
                 if (length(cols_k_num) == 0L) return(NULL)
                 
@@ -112,7 +112,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 r^2
             }
             
-            # Catégoriel : même logique que k-modes var
+            # Categorical part: same idea as variable k-modes
             compute_mode_profile <- function(cols_k_cat) {
                 if (length(cols_k_cat) == 0L) return(NULL)
                 
@@ -143,8 +143,8 @@ mmrClustVarKPrototypes <- R6::R6Class(
             }
             
             # distance d(variable j, cluster k)
-            # - si var j numérique : d = 1 - r^2(x_j, Z_k)
-            # - si var j catégorielle : d = lambda * simple_matching(x_j, mode_k)
+            # - if var j is numeric: d = 1 - r^2(x_j, Z_k)
+            # - if var j is categorical: d = lambda * simple_matching(x_j, mode_k)
             compute_distance <- function(j, k) {
                 is_num_j <- j %in% num_idx
                 is_cat_j <- j %in% cat_idx
@@ -166,12 +166,11 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     return(d)
                 }
                 
-                # cas pas très propre : pas de profil pertinent
-                # on renvoie une distance très grande
+                # fallback: no meaningful prototype → very large distance
                 return(1e6)
             }
             
-            # inertie = somme des distances finales
+            # Inertia = sum of final distances
             compute_inertia <- function(clusters) {
                 tot <- 0
                 for (j in seq_len(p)) {
@@ -184,15 +183,15 @@ mmrClustVarKPrototypes <- R6::R6Class(
             old_inertia <- Inf
             
             # =============================
-            # Boucle principale
+            # Main loop
             # =============================
             for (iter in seq_len(max_iter)) {
                 
-                # 1) recalcul des prototypes
+                # 1) recompute prototypes
                 for (k in seq_len(K)) {
                     vars_k <- which(clusters == k)
                     if (length(vars_k) == 0L) {
-                        # cluster vide → on force une variable au hasard
+                        # empty cluster → force a random variable
                         vars_k <- sample(seq_len(p), size = 1L)
                         clusters[vars_k] <- k
                     }
@@ -220,12 +219,12 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     )
                 }
                 
-                # 2) réaffectation des variables
+                # 2) reassign variables
                 new_clusters <- clusters
                 
                 for (j in seq_len(p)) {
                     d_all <- vapply(
-                        X = seq_len(K),
+                        X   = seq_len(K),
                         FUN = function(k) compute_distance(j, k),
                         FUN.VALUE = numeric(1L)
                     )
@@ -235,7 +234,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 
                 inertia <- compute_inertia(new_clusters)
                 
-                # 3) critères d'arrêt
+                # 3) stopping criteria
                 if (all(new_clusters == clusters)) {
                     converged <- TRUE
                     clusters  <- new_clusters
@@ -263,7 +262,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
         },
         
         # =====================
-        # 2. PREDICT UNE VAR
+        # 2. PREDICT ONE VARIABLE
         # =====================
         predict_one_variable = function(x_new, var_name) {
             num_idx <- private$FNumCols
@@ -272,17 +271,17 @@ mmrClustVarKPrototypes <- R6::R6Class(
             lambda  <- private$FLambda
             
             if (is.null(centers)) {
-                stop("[mmrClustVarKPrototypes] Aucun prototype disponible (fit() non appelé ?)")
+                stop("[mmrClustVarKPrototypes] No prototypes available (did you run fit()?).")
             }
             
             is_num <- is.numeric(x_new)
             is_cat <- is.factor(x_new) || is.character(x_new)
             
             if (!is_num && !is_cat) {
-                stop("[mmrClustVarKPrototypes] Variable à prédire ni numérique ni qualitative.")
+                stop("[mmrClustVarKPrototypes] New variable must be numeric or categorical.")
             }
             
-            # helper locaux
+            # local helpers
             r2_corr <- function(x, z) {
                 r <- suppressWarnings(stats::cor(x, z, use = "pairwise.complete.obs"))
                 if (is.na(r)) r <- 0
@@ -298,6 +297,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
             
             K <- length(centers)
             d_all <- numeric(K)
+            type_metric <- NA_character_
             
             if (is_num) {
                 x <- as.numeric(x_new)
@@ -310,10 +310,9 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     }
                 }
                 
-                k_best <- which.min(d_all)
-                d_raw  <- d_all[k_best]
-                adhesion <- 1 - d_raw  # ≈ r^2
-                
+                k_best   <- which.min(d_all)
+                d_raw    <- d_all[k_best]
+                adhesion <- 1 - d_raw     # ≈ r^2
                 type_metric <- "r2_num"
                 
             } else {
@@ -327,11 +326,11 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     }
                 }
                 
-                k_best <- which.min(d_all)
-                d_raw  <- d_all[k_best]
-                # d_raw = lambda * (1 - proportion_matches)
-                # proportion de matches :
-                adhesion <- 1 - (d_raw / lambda)
+                k_best   <- which.min(d_all)
+                d_raw    <- d_all[k_best]
+                # d_raw = lambda * (1 - match_prop)
+                match_prop <- 1 - (d_raw / lambda)
+                adhesion   <- match_prop
                 type_metric <- "match_cat"
             }
             
@@ -347,12 +346,12 @@ mmrClustVarKPrototypes <- R6::R6Class(
         },
         
         # ===========================
-        # 3. SUMMARY : adhésions
+        # 3. SUMMARY: membership indicators
         # ===========================
         summary_membership = function() {
             X <- private$FX_active
             if (is.null(X)) {
-                cat("(k-prototypes) Aucune variable active stockée.\n")
+                cat("(k-prototypes) No active variables stored.\n")
                 return(invisible(NULL))
             }
             
@@ -392,7 +391,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
             metric_type <- character(p)
             
             for (j in seq_len(p)) {
-                k <- clusters[j]
+                k   <- clusters[j]
                 c_k <- centers[[k]]
                 
                 if (j %in% num_idx && !is.null(X_num)) {
@@ -403,6 +402,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     dist_vec[j]    <- 1 - r2
                     adh_vec[j]     <- r2
                     metric_type[j] <- "r2_num"
+                    
                 } else if (j %in% cat_idx && !is.null(X_cat)) {
                     type_vec[j] <- "categorical"
                     col_cat <- which(cat_idx == j)
@@ -411,6 +411,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     dist_vec[j]    <- lambda * d_raw
                     adh_vec[j]     <- 1 - d_raw
                     metric_type[j] <- "match_cat"
+                    
                 } else {
                     type_vec[j]    <- "unknown"
                     dist_vec[j]    <- NA_real_
@@ -429,22 +430,22 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 stringsAsFactors = FALSE
             )
             
-            cat("=== Indicateurs d'adhésion (k-prototypes) ===\n")
-            cat("numeric : adhesion = r^2(variable, profil numérique du cluster)\n")
-            cat("categorical : adhesion = proportion de matches avec le profil catégoriel\n\n")
+            cat("=== Membership indicators (k-prototypes) ===\n")
+            cat("numeric     : adhesion = r^2(variable, numeric cluster profile)\n")
+            cat("categorical : adhesion = match proportion with the cluster categorical profile\n\n")
             
-            # Indicateurs globaux
-            dist_globale <- mean(df$distance, na.rm = TRUE)
-            adh_globale  <- mean(df$adhesion, na.rm = TRUE)
+            # Global indicators
+            dist_global <- mean(df$distance, na.rm = TRUE)
+            adh_global  <- mean(df$adhesion, na.rm = TRUE)
             
-            # Pour info : séparation num / cat (optionnel mais intéressant)
-            df_num <- df[df$metric_type == "numeric", ]
-            df_cat <- df[df$metric_type == "categorical", ]
+            # Separate numeric / categorical subsets (optional but informative)
+            df_num <- df[df$metric_type == "r2_num", ]
+            df_cat <- df[df$metric_type == "match_cat", ]
             
             adh_num <- if (nrow(df_num) > 0) mean(df_num$adhesion, na.rm = TRUE) else NA_real_
             adh_cat <- if (nrow(df_cat) > 0) mean(df_cat$adhesion, na.rm = TRUE) else NA_real_
             
-            # Stats par cluster
+            # Cluster-level statistics
             stats_list <- lapply(split(df, df$cluster), function(dsub) {
                 c(
                     cluster   = dsub$cluster[1],
@@ -456,35 +457,35 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     adh_max   = max(dsub$adhesion, na.rm = TRUE)
                 )
             })
-            stats_par_cluster <- as.data.frame(do.call(rbind, stats_list))
-            stats_par_cluster$cluster <- as.integer(stats_par_cluster$cluster)
+            stats_by_cluster <- as.data.frame(do.call(rbind, stats_list))
+            stats_by_cluster$cluster <- as.integer(stats_by_cluster$cluster)
             
-            cat(sprintf("Distance moyenne globale : %.3f\n", dist_globale))
-            cat(sprintf("Adhésion moyenne globale : %.3f\n", adh_globale))
+            cat(sprintf("Global mean distance       : %.3f\n", dist_global))
+            cat(sprintf("Global mean adhesion       : %.3f\n", adh_global))
             if (!is.na(adh_num)) {
-                cat(sprintf("Adhésion moyenne (numeric) : %.3f\n", adh_num))
+                cat(sprintf("Mean adhesion (numeric)    : %.3f\n", adh_num))
             }
             if (!is.na(adh_cat)) {
-                cat(sprintf("Adhésion moyenne (categorical) : %.3f\n", adh_cat))
+                cat(sprintf("Mean adhesion (categorical): %.3f\n", adh_cat))
             }
             cat("\n")
             
-            cat("--- Statistiques par cluster ---\n")
-            print(stats_par_cluster)
+            cat("--- Cluster-level statistics ---\n")
+            print(stats_by_cluster)
             
-            cat("\n--- Détail par variable ---\n")
+            cat("\n--- Variable-level details ---\n")
             print(df)
             
             invisible(df)
         },
         
         # ===========================
-        # 4. PLOT : adhésion
+        # 4. PLOT: membership barplot
         # ===========================
         plot_membership = function() {
             X <- private$FX_active
             if (is.null(X)) {
-                stop("[mmrClustVarKPrototypes] plot(type = 'membership') : aucun X actif.")
+                stop("[mmrClustVarKPrototypes] plot(type = 'membership'): no active X available.")
             }
             
             num_idx <- private$FNumCols
@@ -516,7 +517,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 d
             }
             
-            adh_vec  <- numeric(p)
+            adh_vec   <- numeric(p)
             var_names <- colnames(X)
             
             for (j in seq_len(p)) {
@@ -542,19 +543,19 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 adh_vec[o],
                 names.arg = var_names[o],
                 las = 2,
-                main = "Adhésion des variables aux clusters (k-prototypes)",
-                ylab = "adhésion",
+                main = "Variable–Cluster Membership (k-prototypes)",
+                ylab = "adhesion",
                 cex.names = 0.7
             )
         },
         
         # ===========================
-        # 5. PLOT : PROFILS
+        # 5. PLOT: profiles (numeric + categorical)
         # ===========================
         plot_profiles = function() {
             X <- private$FX_active
             if (is.null(X)) {
-                warning("[mmrClustVarKPrototypes] plot(type = 'profiles') : aucun X actif.")
+                warning("[mmrClustVarKPrototypes] plot(type = 'profiles'): no active X available.")
                 return(invisible(NULL))
             }
             
@@ -565,14 +566,16 @@ mmrClustVarKPrototypes <- R6::R6Class(
             n <- nrow(X)
             K <- private$FNbGroupes
             
-            # --- partie numérique : heatmap de Z_k (comme k-means) ---
-            has_num <- length(num_idx) > 0L && any(vapply(centers, function(c_k) !is.null(c_k$num), logical(1L)))
+            # numeric part: heatmap of Z_k (like k-means)
+            has_num <- length(num_idx) > 0L &&
+                any(vapply(centers, function(c_k) !is.null(c_k$num), logical(1L)))
             
-            # --- partie catégorielle : proportion moyenne de matches par individu (comme k-modes) ---
-            has_cat <- length(cat_idx) > 0L && any(vapply(centers, function(c_k) !is.null(c_k$cat), logical(1L)))
+            # categorical part: mean match proportion per individual (like k-modes)
+            has_cat <- length(cat_idx) > 0L &&
+                any(vapply(centers, function(c_k) !is.null(c_k$cat), logical(1L)))
             
             if (!has_num && !has_cat) {
-                warning("[mmrClustVarKPrototypes] Aucun profil exploitable pour 'profiles'.")
+                warning("[mmrClustVarKPrototypes] No usable profiles for 'profiles' plot.")
                 return(invisible(NULL))
             }
             
@@ -583,7 +586,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 par(mfrow = c(1, 2))
             }
             
-            # --- NUMERIQUE ---
+            # --- NUMERIC PROFILES ---
             if (has_num) {
                 Z_mat <- matrix(NA_real_, nrow = n, ncol = K)
                 colnames(Z_mat) <- paste0("Cluster ", seq_len(K))
@@ -601,8 +604,8 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     y = seq_len(n),
                     z = t(Z_mat),
                     xlab = "Clusters",
-                    ylab = "Individus",
-                    main = "Profils numériques (k-prototypes)",
+                    ylab = "Individuals",
+                    main = "Numeric profiles (k-prototypes)",
                     axes = FALSE
                 )
                 axis(1, at = seq_len(K), labels = colnames(Z_mat))
@@ -610,37 +613,29 @@ mmrClustVarKPrototypes <- R6::R6Class(
                 box()
             }
             
-            # --- CATEGORIEL ---
+            # --- CATEGORICAL PROFILES ---
             if (has_cat) {
                 X_cat <- as.matrix(as.data.frame(
                     lapply(X[, cat_idx, drop = FALSE], as.character),
                     stringsAsFactors = FALSE
                 ))
-                p_cat <- ncol(X_cat)
+                p_cat    <- ncol(X_cat)
                 clusters <- private$FClusters
                 
                 prof_cat <- matrix(NA_real_, nrow = n, ncol = K)
                 colnames(prof_cat) <- paste0("Cluster ", seq_len(K))
                 rownames(prof_cat) <- seq_len(n)
                 
-                simple_matching <- function(x, m) {
-                    mismatch <- (x != m)
-                    d <- mean(mismatch, na.rm = TRUE)
-                    if (is.na(d)) d <- 1
-                    d
-                }
-                
                 for (k in seq_len(K)) {
-                    vars_k <- which(clusters == k)
+                    vars_k     <- which(clusters == k)
                     vars_k_cat <- intersect(vars_k, cat_idx)
                     if (length(vars_k_cat) == 0L) next
                     
                     mk <- centers[[k]]$cat
                     if (is.null(mk)) next
                     
-                    # proportion de matches par individu
+                    # match proportion per individual
                     for (i in seq_len(n)) {
-                        # valeurs des variables catégorielles du cluster k pour cet individu
                         cols_k_cat <- match(vars_k_cat, cat_idx)
                         vals <- X_cat[i, cols_k_cat]
                         matches <- (vals == mk[i])
@@ -655,8 +650,8 @@ mmrClustVarKPrototypes <- R6::R6Class(
                     y = seq_len(n),
                     z = t(prof_cat),
                     xlab = "Clusters",
-                    ylab = "Individus",
-                    main = "Profils catégoriels (k-prototypes)\n(proportion de matches au mode)",
+                    ylab = "Individuals",
+                    main = "Categorical profiles (k-prototypes)\n(match proportion with cluster mode)",
                     axes = FALSE
                 )
                 axis(1, at = seq_len(K), labels = colnames(prof_cat))
