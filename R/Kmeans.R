@@ -1,7 +1,7 @@
 
 
 
-
+#' @export
 
 Kmeans <- R6::R6Class(
   "K-means",
@@ -10,21 +10,22 @@ Kmeans <- R6::R6Class(
   
   private = list(
     
-    # --- Attributs internes ---
+    # --- Private attributs ---
     
     FScale       = NULL,  # TRUE / FALSE (standardisation des variables quantitatives actives)
     FNumCols     = NULL,  # indices des variables quantitatives dans FX_active
     
-    # --- Helpers internes ---
+    # --- Helper methods ---
     
     prepare_X = function(X, update_structure = TRUE) {
       # Check X matrix
       private$check_X(X, update_structure)
-      # Identification des colonnes numériques / catégorielles
-      num_idx <- which(vapply(X, is.numeric, logical(1L)))
       
       if (update_structure) {
+        # Identification des colonnes numériques / catégorielles
+        num_idx <- which(vapply(X, is.numeric, logical(1L)))
         private$FNumCols <- num_idx
+        
         if (length(num_idx) == 0L) {
           stop("Aucune variable quantitative trouvée pour la méthode 'kmeans'.")
         }
@@ -95,7 +96,30 @@ Kmeans <- R6::R6Class(
       
     },
     
-    # Coeurs d'algorithme
+    compute_membership = function(X, clusters, centers) {
+      p <- length(clusters)
+      membership <- rep(NA_real_, p)
+      
+      # r^2(X_j, Z_k(j))
+      X_mat <- as.matrix(X)
+      for (j in seq_len(p)) {
+        kj <- clusters[j]
+        zk <- centers[[kj]]
+        xj <- X_mat[, j]
+        r  <- suppressWarnings(stats::cor(xj, zk, use = "pairwise.complete.obs"))
+        if (is.na(r)) r <- 0
+        membership[j] <- r^2
+      }
+      membership_label <- "r^2 (correlation avec la composante latente du cluster)"
+      
+      return(list(
+        content = membership,
+        label = membership_label
+      ))
+    },
+    
+    # --- Main algorithm method ---
+    
     run_kmeans = function(X) {
       # X : data.frame ou matrice n x p, uniquement des variables quantitatives
       K <- private$FNbGroupes
@@ -203,8 +227,8 @@ Kmeans <- R6::R6Class(
     
     fit = function(X) {
       X <- private$prepare_X(X, update_structure = TRUE)
-      if (!isTRUE(private$FScale)) {
-        X <- scale_active_variables(private$FNumCols)
+      if (isTRUE(private$FScale)) {
+        X <- private$scale_active_variables(X, private$FNumCols)
       }
       private$FX_active <- X
       

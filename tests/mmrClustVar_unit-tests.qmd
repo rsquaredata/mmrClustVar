@@ -5,6 +5,12 @@ format: html
 editor: visual
 ---
 
+# Chargement du package
+
+```{r}
+devtools::load_all()
+```
+
 # Tests des algorithmes
 
 ## k-means
@@ -12,19 +18,14 @@ editor: visual
 ## Jeu de données test
 
 ```{r}
-X_num <- iris[, 1:4]
+X_num <- mtcars[, 1:6]
 ```
 
 ## Test minimal
 
 ```{r}
-library(R6)
-
-# charger la classe mmrClustVar
-source("../R/mmrClustVar.R")
-
 # création de l'objet avec K=2
-obj <- mmrClustVar$new(method = "kmeans", K = 2, scale = TRUE)
+obj <- Kmeans$new(K = 3, scale = TRUE, random_state = 1)
 
 # apprentissage
 obj$fit(X_num)
@@ -57,7 +58,7 @@ obj$get_method()
 X_num <- iris[, 1:4]
 
 for (K in 2:5){
-    obj <- mmrClustVar$new(method="kmeans", K=K, scale=TRUE)
+    obj <- Kmeans$new(K=K, scale=TRUE)
     obj$fit(X_num)
     cat("K =", K, " - inertie =", obj$get_inertia(), "\n")
 }
@@ -71,7 +72,7 @@ inertias <- numeric(n_runs)
 convergences <- logical(n_runs)
 
 for (i in seq_len(n_runs)) {
-  obj <- mmrClustVar$new(method = "kmeans", K= 2, scale = TRUE)
+  obj <- Kmeans$new(K= 3, scale = TRUE)
   obj$fit(X_num)
   
   inertias[i] <- obj$get_inertia()
@@ -89,9 +90,9 @@ results
 # préparation des données
 X_num <- iris[, 1:4]
 
-obj_test <- mmrClustVar$new(method = "kmeans", K = 2, scale = TRUE)
+obj_test <- Kmeans$new(K = 2, scale = TRUE)
 
-X_num_prep <- obj_test$.__enclos_env__$private$check_and_prepare_X(X_num)
+X_num_prep <- obj_test$.__enclos_env__$private$prepare_X(X_num)
 
 str(X_num_prep)
 obj_test$.__enclos_env__$private$FNumCols
@@ -102,10 +103,11 @@ obj_test$.__enclos_env__$private$FCatCols
 # standardisation des variables actives
 X_num <- iris[, 1:4]
 
-obj_scale <- mmrClustVar$new(method = "kmeans", K = 2, scale = TRUE)
+obj_scale <- Kmeans$new(K = 2, scale = TRUE)
 
-X_num_prep <- obj_scale$.__enclos_env__$private$check_and_prepare_X(X_num)
-X_num_scaled <- obj_scale$.__enclos_env__$private$scale_active_variables(X_num_prep)
+X_num_prep <- obj_scale$.__enclos_env__$private$prepare_X(X_num)
+F_num_cols <- obj_scale$.__enclos_env__$private$FNumCols
+X_num_scaled <- obj_scale$.__enclos_env__$private$scale_active_variables(X_num_prep, F_num_cols)
 
 apply(X_num_scaled, 2, mean)
 apply(X_num_scaled, 2, sd)
@@ -146,7 +148,7 @@ cors^2
 # données actives : iris num
 X <- iris[, 1:4]
 
-obj_km <- mmrClustVar$new(method="kmeans", K=2, scale=TRUE)
+obj_km <- Kmeans$new(K=2, scale=TRUE)
 obj_km$fit(X)
 
 # variables descriptives : on reprend par exemple Sepal.Length et Sepal.Width
@@ -173,9 +175,7 @@ X_cat <- data.frame(
 ### Test minimal
 
 ```{r}
-source("mmrClustVar.R")
-
-obj_kmodes <- mmrClustVar$new(method = "kmodes", K = 2)
+obj_kmodes <- Kmodes$new(K = 2, random_state = 1)
 obj_kmodes$fit(X_cat)
 obj_kmodes$print()
 ```
@@ -202,7 +202,7 @@ obj_kmodes$get_inertia()
 
 ```{r}
 for (K in 2:5){
-    obj <- mmrClustVar$new(method="kmodes", K=K)
+    obj <- Kmodes$new(K=K, random_state = 1)
     obj$fit(X_cat)
     cat("K =", K, " - inertie =", obj$get_inertia(), "\n")
 }
@@ -216,7 +216,7 @@ inertias_kmodes <- numeric(n_runs)
 convergences_kmodes <- logical(n_runs)
 
 for (i in seq_len(n_runs)) {
-  obj <- mmrClustVar$new(method = "kmodes", K = 2)
+  obj <- Kmodes$new(K = 2, random_state = 1)
   obj$fit(X_cat)
   
   inertias_kmodes[i]     <- obj$get_inertia()
@@ -232,9 +232,9 @@ res_kmodes
 
 ```{r}
 # préparation des données
-obj_test_km <- mmrClustVar$new(method = "kmodes", K = 2, scale = FALSE)
+obj_test_km <- Kmodes$new(K = 2, random_state = 1)
 
-X_cat_prep <- obj_test_km$.__enclos_env__$private$check_and_prepare_X(X_cat)
+X_cat_prep <- obj_test_km$.__enclos_env__$private$prepare_X(X_cat)
 
 str(X_cat_prep)
 obj_test_km$.__enclos_env__$private$FNumCols  # attendu : integer(0)
@@ -243,7 +243,7 @@ obj_test_km$.__enclos_env__$private$FCatCols  # attendu : 1:4
 
 ```{r}
 # structure des prototypes catégoriels
-obj_kmodes2 <- mmrClustVar$new(method = "kmodes", K = 2)
+obj_kmodes2 <- Kmodes$new(K = 2, random_state = 1)
 obj_kmodes2$fit(X_cat)
 
 centers_km <- obj_kmodes2$get_centers()
@@ -255,7 +255,7 @@ head(centers_km[[1]])
 
 ```{r}
 # dissimilarité simple matching
-obj_kmodes3 <- mmrClustVar$new(method = "kmodes", K = 2)
+obj_kmodes3 <- Kmodes$new(K = 2, random_state = 1)
 obj_kmodes3$fit(X_cat)
 
 centers_km  <- obj_kmodes3$get_centers()
@@ -286,7 +286,7 @@ X_cat <- data.frame(
   Petal.Width.f  = cut(iris$Petal.Width, 3)
 )
 
-obj_kmodes <- mmrClustVar$new(method = "kmodes", K = 3)
+obj_kmodes <- Kmodes$new(K = 3, random_state = 1)
 obj_kmodes$fit(X_cat)
 
 X_descr_cat <- X_cat[, 1:2]
@@ -309,9 +309,7 @@ str(X_mix)
 ### Test minimal
 
 ```{r}
-source("mmrClustVar.R")
-
-obj_kprot <- mmrClustVar$new(method="kprototypes", K=3, scale  = TRUE, lambda=1)
+obj_kprot <- Kprototypes$new(K=3, lambda=1, random_state = 1)
 
 obj_kprot$fit(X_mix)
 obj_kprot$print()
@@ -335,8 +333,9 @@ obj_kprot$get_method()
 
 ```{r}
 # préparation des données
-obj_test_kp <- mmrClustVar$new(method="kprototypes", K=3, scale=TRUE, lambda=1)
-X_mix_prep <- obj_test_kp$.__enclos_env__$private$check_and_prepare_X(X_mix)
+obj_test_kp <- Kprototypes$new(K=3, lambda=1, random_state = 1)
+F_num_cols <- obj_test_kp$.__enclos_env__$private$FNumCols
+X_mix_prep <- obj_test_kp$.__enclos_env__$private$prepare_X(X_mix)
 
 str(X_mix_prep)
 obj_test_kp$.__enclos_env__$private$FNumCols  # attendu : 1:4
@@ -345,9 +344,7 @@ obj_test_kp$.__enclos_env__$private$FCatCols  # attendu : 5
 
 ```{r}
 # structure des prototypes mixtes
-obj_kprot2 <- mmrClustVar$new(method="kprototypes", K=3, scale = TRUE,
-  lambda = 1
-)
+obj_kprot2 <- Kprototypes$new(K=3, lambda = 1, random_state=1)
 obj_kprot2$fit(X_mix)
 
 prototypes_kp <- obj_kprot2$.__enclos_env__$private$FCenters
@@ -373,7 +370,7 @@ proto1$cat
 # données mixtes
 X_mix <- data.frame(iris[, 1:4], Species = iris$Species)
 
-obj_kprot3 <- mmrClustVar$new(method="kprototypes", K=3, scale  = TRUE, lambda=1)
+obj_kprot3 <- Kprototypes$new(K=3, lambda = 1, random_state=1)
 
 obj_kprot3$fit(X_mix)
 
@@ -441,7 +438,7 @@ which.min(d_cat_all) # attendu : which.min(d_cat_call) = kc
 
 ```{r}
 for (K in 2:5) {
-  obj <- mmrClustVar$new(method="kprototypes", K=K, scale=TRUE, lambda = 1)
+  obj <- Kprototypes$new(K=3, lambda = 1)
   obj$fit(X_mix)
   cat("K =", K, " - inertie = ", obj$get_inertia(), "\n")
 }
@@ -455,7 +452,7 @@ inertias_kprot <- numeric(n_runs)
 convergences_kprot <- logical(n_runs)
 
 for (i in seq_len(n_runs)) {
-  obj <- mmrClustVar$new(method="kprototypes", K=3, scale=TRUE, lambda=1)
+  obj <- Kprototypes$new(K=3, lambda = 1)
   obj$fit(X_mix)
   
   inertias_kprot[i] <- obj$get_inertia()
@@ -472,7 +469,7 @@ res_kprot
 ```{r}
 X_mix <- data.frame(iris[, 1:4], Species = iris$Species)
 
-obj_kprot <- mmrClustVar$new(method = "kprototypes", K = 3, scale = TRUE, lambda = 1)
+obj_kprot <- Kprototypes$new(K=3, lambda = 1, random_state=1)
 obj_kprot$fit(X_mix)
 
 # descriptives numériques
@@ -504,7 +501,6 @@ Exemples :
     -   et la proximité catégorielle (modalités similaires sur les facteurs).
 -->
 ```
-
 # Tests d'usage sur l'interface Shiny
 
 ```{=html}

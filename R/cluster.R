@@ -16,7 +16,6 @@
     FInertia     = NULL,  # inertie intra-cluster totale
     FConvergence = NULL,  # booléen
     FX_descr     = NULL,  # variables descriptives fournies à predict()
-    FAlgorithme  = NULL,  # nom textuel de la variante exacte de l'algo
     FMethod      = NULL,  # "k-means", "k-modes", "k-prototypes"
     
     # --- Helpers internes ---
@@ -64,12 +63,27 @@
         }
       }
       return(X)
+    },
+    
+    # --- Abstract interns  ---
+    compute_membership = function(X, clusters, centers) {
+      # Compute cluster membership
+      # Arguments:
+      #   X:        data matrix
+      #   clusters: vecteur d'affectation des variables actives
+      #   centers:  centres / modes / prototypes selon la méthode
+      # Returns:
+      #   list(
+      #     content: membership numerics
+      #     label:   distance label
+      #   )
+      stop(paste("Membership method hasn't been implemented on ", private$FMethod, " and is required for summary."))
     }
   ),
   
   public = list(
     
-    # --- Print succinct ---
+    # --- Print methods ---
     
     print = function(...) {
       cat("Classe 'mmrClustVar'\n")
@@ -84,6 +98,88 @@
       }
       cat("  Convergence    :", private$FConvergence, "\n")
       invisible(self)
+    },
+    
+    summary = function(...) {
+      X        <- private$FX_active
+      K        <- private$FNbGroupes
+      clusters <- private$FClusters
+      centers  <- private$FCenters
+      
+      cat("Résumé du modèle 'mmrClustVar'\n")
+      cat("  Méthode        :", method, "\n")
+      cat("  K              :", K, "\n")
+      cat("  Nb variables   :", length(clusters), "\n")
+      cat("  Inertie intra  :", format(private$FInertia, digits = 4), "\n")
+      cat("  Convergence    :", private$FConvergence, "\n\n")
+      
+      # --- 1) Degré d'adhésion par variable ---
+      membership <- private$compute_membership(X, clusters, centers)
+      
+      # --- 2) Résumé par cluster ---
+      tab_size <- table(clusters)
+      cl_ids   <- as.integer(names(tab_size))
+      mean_mem <- tapply(membership$content, clusters, mean, na.rm = TRUE)
+      
+      cat("Résumé par cluster :\n")
+      cl_df <- data.frame(
+        cluster          = cl_ids,
+        taille           = as.integer(tab_size[as.character(cl_ids)]),
+        adhesion_moyenne = as.numeric(mean_mem[as.character(cl_ids)])
+      )
+      print(cl_df, row.names = FALSE)
+      cat("\n")
+      
+      # --- 3) Tableau variables / cluster / adhésion ---
+      var_df <- data.frame(
+        variable  = colnames(X),
+        cluster   = clusters,
+        adhesion  = membership$content,
+        stringsAsFactors = FALSE
+      )
+      
+      cat("Indicateur d'adhésion (", membership$label, ")\n", sep = "")
+      # On affiche seulement les 10 premières lignes triées par cluster puis par adhésion décroissante
+      ord <- order(var_df$cluster, -var_df$adhesion)
+      print(utils::head(var_df[ord, ], n = min(10L, nrow(var_df))), row.names = FALSE)
+      cat("\n(Le data.frame complet est renvoyé invisiblement.)\n")
+      
+      invisible(var_df)
+    },
+    
+    # --- Getter methods ---
+    
+    get_clusters = function() {
+      private$FClusters
+    },
+    
+    get_inertia = function() {
+      private$FInertia
+    },
+    
+    get_method = function() {
+      private$FMethod
+    },
+    
+    get_centers = function() {
+      private$FCenters
+    },
+    
+    get_convergence = function() {
+      private$FConvergence
+    },
+    
+    get_X_descr = function() {
+      private$FX_descr
+    },
+    
+    # --- Abstract methods ---
+    
+    fit = function(X) {
+      stop(paste("$fit() method hasn't been implemented on ", private$FMethod))
+    },
+    predict = function(X_new) {
+      stop(paste("$predict() method hasn't been implemented on ", private$FMethod))
     }
   )
 )

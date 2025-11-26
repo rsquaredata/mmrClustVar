@@ -1,5 +1,5 @@
 
-
+#' @export
 
 Kmodes <- R6::R6Class(
   "K-modes",
@@ -8,11 +8,12 @@ Kmodes <- R6::R6Class(
   
   private = list(
     
-    # --- Attributs internes ---
+    # --- Private attributs ---
     
     FCatCols     = NULL,  # indices des variables qualitatives dans FX_active
     
-    # --- Helpers internes ---
+    # --- Helper methods ---
+    
     prepare_X = function(X, update_structure = TRUE) {
       # Check X matrix
       private$check_X(X, update_structure)
@@ -101,7 +102,31 @@ Kmodes <- R6::R6Class(
       return(res)
     },
     
-    # Coeurs d'algorithme
+    compute_membership = function(X, clusters, centers) {
+      p <- length(clusters)
+      membership <- rep(NA_real_, p)
+      
+      # 1 - dissimilarité simple matching
+      X_char <- as.data.frame(lapply(X, as.character), stringsAsFactors = FALSE)
+      for (j in seq_len(p)) {
+        kj <- clusters[j]
+        xj <- X_char[[j]]
+        zk <- centers[[kj]]
+        mismatch <- xj != zk
+        d <- mean(mismatch, na.rm = TRUE)
+        if (is.na(d)) d <- 1
+        membership[j] <- 1 - d
+      }
+      membership_label <- "1 - dissimilarité (simple matching) avec le mode du cluster"
+      
+      return(list(
+        content = membership,
+        label = membership_label
+      ))
+    },
+    
+    # --- Main algorithm method ---
+    
     run_kmodes = function(X) {
       # X : data.frame n x p, uniquement des variables qualitatives
       K <- private$FNbGroupes
@@ -232,7 +257,21 @@ Kmodes <- R6::R6Class(
       if (is.null(private$FX_active)) {
         stop("Le modèle n'a pas encore été appris. Appelez fit() d'abord.")
       }
-      private$check_X_new
+      private$check_X_new(X_new)
+      
+      res_list <- vector("list", length = ncol(X_new))
+      for (j in seq_len(ncol(X_new))) {
+        res_list[[j]] <- private$predict_one_variable(
+          x_new    = X_new[[j]],
+          var_name = colnames(X_new)[j]
+        )
+      }
+      
+      private$FX_descr <- X_new # mémorisation des variables descriptives
+      
+      res <- do.call(rbind, res_list)
+      rownames(res) <- NULL
+      return(res)
     }
   )
 )

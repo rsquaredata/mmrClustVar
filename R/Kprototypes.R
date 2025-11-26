@@ -1,5 +1,5 @@
 
-
+#' @export
 
 Kprototypes <- R6::R6Class(
   "K-prototypes",
@@ -8,14 +8,14 @@ Kprototypes <- R6::R6Class(
   
   private = list(
     
-    # --- Attributs internes ---
+    # --- Private attributs ---
     
     FScale       = NULL,  # TRUE / FALSE (standardisation des variables quantitatives actives)
     FNumCols     = NULL,  # indices des variables quantitatives dans FX_active
     FCatCols     = NULL,  # indices des variables qualitatives dans FX_active
     FLambda      = NULL,  # pondération partie catégorielle (k-prototypes)
     
-    # --- Helpers internes ---
+    # --- Helper methods ---
     
     prepare_X = function(X, update_structure = TRUE) {
       # Check X matrix
@@ -180,7 +180,63 @@ Kprototypes <- R6::R6Class(
       return(res)
     },
     
-    # Coeurs d'algorithme
+    compute_membership = function(X, clusters, centers) {
+      p <- length(clusters)
+      membership <- rep(NA_real_, p)
+      
+      # r^2 pour les variables numériques,
+      # 1 - dissimilarité simple matching pour les variables qualitatives
+      num_idx <- private$FNumCols
+      cat_idx <- private$FCatCols
+      X_used  <- X
+      
+      for (j in seq_len(p)) {
+        kj      <- clusters[j]
+        proto_k <- centers[[kj]]
+        
+        if (j %in% num_idx) {
+          # Partie numérique : r^2(X_j, P_k^num)
+          xj     <- X_used[[j]]
+          zk_num <- proto_k$num
+          if (is.null(zk_num)) {
+            membership[j] <- NA_real_
+          } else {
+            r <- suppressWarnings(
+              stats::cor(xj, zk_num, use = "pairwise.complete.obs")
+            )
+            if (is.na(r)) r <- 0
+            membership[j] <- r^2
+          }
+          
+        } else if (j %in% cat_idx) {
+          # Partie catégorielle : 1 - d_raw, avec d_raw dans [0,1]
+          xj_char <- as.character(X_used[[j]])
+          zk_cat  <- proto_k$cat   # vecteur de longueur n
+          
+          if (is.null(zk_cat) || length(zk_cat) != length(xj_char)) {
+            membership[j] <- 0
+          } else {
+            mismatch <- xj_char != zk_cat
+            d_raw <- mean(mismatch, na.rm = TRUE)
+            if (is.na(d_raw)) d_raw <- 1
+            membership[j] <- 1 - d_raw
+          }
+          
+        } else {
+          membership[j] <- NA_real_
+        }
+      }
+      
+      membership_label <- "Score d'adhésion (r^2 pour les num., 1 - dissimilarité pour les cat.)"
+      
+      return(list(
+        content = membership,
+        label = membership_label
+      ))
+    },
+    
+    # --- Main algorithm method ---
+    
     run_kprototypes = function(X) {
       # X : data.frame des variables actives
       n <- nrow(X)
@@ -330,26 +386,41 @@ Kprototypes <- R6::R6Class(
     
     fit = function(X) {
       X <- private$prepare_X(X, update_structure = TRUE)
-      if (!isTRUE(private$FScale)) {
-        X <- scale_active_variables(private$FNumCols)
-        private$FX_active <- X
-        
-        res <- private$run_kprototypes(X)
-        
-        private$FClusters    <- res$clusters
-        private$FCenters     <- res$centers
-        private$FInertia     <- res$inertia
-        private$FConvergence <- isTRUE(res$converged)
-        
-        invisible(self)
+      if (isTRUE(private$FScale)) {
+        X <- private$scale_active_variables(X, private$FNumCols)
       }
+      
+      private$FX_active <- X
+      
+      res <- private$run_kprototypes(X)
+      
+      private$FClusters    <- res$clusters
+      private$FCenters     <- res$centers
+      private$FInertia     <- res$inertia
+      private$FConvergence <- isTRUE(res$converged)
+      
+      invisible(self)
     },
     
     predict = function(X_new) {
       if (is.null(private$FX_active)) {
         stop("Le modèle n'a pas encore été appris. Appelez fit() d'abord.")
       }
-      private$check_X_new
+      private$check_X_new(X_new)
+      
+      res_list <- vector("list", length = ncol(X_new))
+      for (j in seq_len(ncol(X_new))) {
+        res_list[[j]] <- private$predict_one_variable(
+          x_new    = X_new[[j]],
+          var_name = colnames(X_new)[j]
+        )
+      }
+      
+      private$FX_descr <- X_new # mémorisation des variables descriptives
+      
+      res <- do.call(rbind, res_list)
+      rownames(res) <- NULL
+      return(res)
     }
   )
 )
