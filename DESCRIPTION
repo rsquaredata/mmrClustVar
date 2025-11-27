@@ -3,9 +3,18 @@ Title: Clustering of Variables with K-means, K-modes and K-prototypes
 Version: 0.1.0
 Authors@R: 
     c(
-      person("Marin", "Nagy", , "marin.nagy@univ-lyon2.fr", role = "aut"),
-      person("Mazilda", "Zehraoui", , "", role = "aut"),
-      person("Rina", "Razafimahefa", , "", role = "cre")
+      person(
+        given = "Marin", 
+        family = "Nagy",
+        role = "aut"),
+      person(
+        given = "Mazilda", 
+        family = "Zehraoui",
+        role = "aut"),
+      person(
+        given = "Rina", 
+        family = "Razafimahefa",
+        role = c("aut", "cre"))
     )
 Description: R6 class and tools to cluster variables (numeric, categorical or mixed)
     using k-means, k-modes and k-prototypes.
