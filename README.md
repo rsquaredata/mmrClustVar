@@ -27,10 +27,9 @@ Key features include:
 
 ```r
 # install directly from GitHub
-devtools: install_github("username/mmrClustVar")
+devtools: install_github("rsquaredata/mmrClustVar")
 # load the package
 ```
-> /!\ Replace `username` with your GitHub name.
 
 ---
 
