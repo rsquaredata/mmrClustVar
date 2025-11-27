@@ -183,6 +183,7 @@ Kprototypes <- R6::R6Class(
     compute_membership = function(X, clusters, centers) {
       p <- length(clusters)
       membership <- rep(NA_real_, p)
+      names(membership) <- names(clusters)
       
       # r^2 pour les variables numériques,
       # 1 - dissimilarité simple matching pour les variables qualitatives
@@ -237,7 +238,7 @@ Kprototypes <- R6::R6Class(
     
     # --- Main algorithm method ---
     
-    run_kprototypes = function(X) {
+    clusterize = function(X) {
       # X : data.frame des variables actives
       n <- nrow(X)
       p <- ncol(X)
@@ -359,6 +360,8 @@ Kprototypes <- R6::R6Class(
         inertia  <- new_inertia
       }
       
+      names(clusters) <- names(X) # set column names
+      
       res <- list(
         clusters   = clusters,
         centers = prototypes,
@@ -392,7 +395,7 @@ Kprototypes <- R6::R6Class(
       
       private$FX_active <- X
       
-      res <- private$run_kprototypes(X)
+      res <- private$clusterize(X)
       
       private$FClusters    <- res$clusters
       private$FCenters     <- res$centers

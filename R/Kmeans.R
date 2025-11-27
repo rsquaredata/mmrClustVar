@@ -99,6 +99,7 @@ Kmeans <- R6::R6Class(
     compute_membership = function(X, clusters, centers) {
       p <- length(clusters)
       membership <- rep(NA_real_, p)
+      names(membership) <- names(clusters)
       
       # r^2(X_j, Z_k(j))
       X_mat <- as.matrix(X)
@@ -120,7 +121,7 @@ Kmeans <- R6::R6Class(
     
     # --- Main algorithm method ---
     
-    run_kmeans = function(X) {
+    clusterize = function(X) {
       # X : data.frame ou matrice n x p, uniquement des variables quantitatives
       K <- private$FNbGroupes
       n <- nrow(X)
@@ -129,7 +130,7 @@ Kmeans <- R6::R6Class(
       # Sécurité : vérifier que tout est numérique
       is_num <- vapply(X, is.numeric, logical(1L))
       if (!all(is_num)) {
-        stop("run_kmeans() : X must contain only quantitative variables.")
+        stop("clusterize() : X must contain only quantitative variables.")
       }
       
       X_mat <- as.matrix(X)
@@ -202,6 +203,8 @@ Kmeans <- R6::R6Class(
         inertia_old <- inertia
       }
       
+      names(clusters) <- names(X) # set column names
+      
       # Résultat : on retourne la partition et les composantes latentes
       res <- list(
         clusters = clusters,       # vecteur de longueur p
@@ -232,7 +235,7 @@ Kmeans <- R6::R6Class(
       }
       private$FX_active <- X
       
-      res <- private$run_kmeans(X)
+      res <- private$clusterize(X)
       
       private$FClusters    <- res$clusters
       private$FCenters     <- res$centers

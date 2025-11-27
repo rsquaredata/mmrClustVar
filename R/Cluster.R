@@ -183,19 +183,26 @@
         # On réutilise la logique de summary() pour calculer l'adhésion
         membership <- private$compute_membership(X, clusters, centers)
         
-        ord <- order(clusters)
+        # Create data.frame for the barplot
+        data <- data.frame(
+          distance = membership$content,
+          cluster = clusters,
+          variable = colnames(X)
+        )
+        data <- data[order(data$cluster, -data$distance), ] # sort by cluster and distance (adhesion)
+        
         graphics::barplot(
-          membership$content[ord],
-          names.arg = colnames(X)[ord],
+          data$distance,
+          names.arg = data$variable,
           las = 2,
           cex.names = 0.6,
           xlab = "Variables",
           ylab = membership$label,
           main = "Degré d'adhésion des variables à leur cluster",
-          col = clusters,
+          col = data$cluster,
           ...
         )
-        return(ord)
+        return(membership)
         return(invisible(NULL))
       }
       
@@ -215,7 +222,7 @@
         
         for (i in seq_along(Ks)) {
           private$FNbGroupes <- as.integer(Ks[i])
-          res_i <- self$fit(X)
+          res_i <- private$clusterize(X)
           inertias[i] <- res_i$inertia
         }
         

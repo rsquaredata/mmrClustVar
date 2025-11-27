@@ -105,6 +105,7 @@ Kmodes <- R6::R6Class(
     compute_membership = function(X, clusters, centers) {
       p <- length(clusters)
       membership <- rep(NA_real_, p)
+      names(membership) <- names(clusters)
       
       # 1 - dissimilarité simple matching
       X_char <- as.data.frame(lapply(X, as.character), stringsAsFactors = FALSE)
@@ -127,7 +128,7 @@ Kmodes <- R6::R6Class(
     
     # --- Main algorithm method ---
     
-    run_kmodes = function(X) {
+    clusterize = function(X) {
       # X : data.frame n x p, uniquement des variables qualitatives
       K <- private$FNbGroupes
       n <- nrow(X)
@@ -136,7 +137,7 @@ Kmodes <- R6::R6Class(
       # Sécurité : toutes les colonnes doivent être des facteurs
       is_cat <- vapply(X, is.factor, logical(1L))
       if (!all(is_cat)) {
-        stop("run_kmodes() : X must contain only qualitative variables.")
+        stop("clusterize() : X must contain only qualitative variables.")
       }
       
       # On travaille en caractère pour simplifier les comparaisons
@@ -190,7 +191,7 @@ Kmodes <- R6::R6Class(
           for (k in seq_len(K)) {
             zk <- Z_list[[k]]
             if (length(zk) != n) {
-              stop("run_kmodes() : prototype of incompatible length.")
+              stop("clusterize() : prototype of incompatible length.")
             }
             mismatch <- xj != zk
             d <- mean(mismatch, na.rm = TRUE)
@@ -218,6 +219,8 @@ Kmodes <- R6::R6Class(
         inertia_old <- inertia
       }
       
+      names(clusters) <- names(X) # set column names
+      
       res <- list(
         clusters  = clusters,   # vecteur de longueur p : cluster de chaque variable
         centers   = Z_list,     # liste de K prototypes (vecteurs de longueur n)
@@ -243,7 +246,7 @@ Kmodes <- R6::R6Class(
       X <- private$prepare_X(X, update_structure = TRUE)
       private$FX_active <- X
       
-      res <- private$run_kmodes(X)
+      res <- private$clusterize(X)
       
       private$FClusters    <- res$clusters
       private$FCenters     <- res$centers
