@@ -5,7 +5,7 @@ Authors@R:
     c(
       person("Marin", "Nagy", , "marin.nagy@univ-lyon2.fr", role = "aut"),
       person("Mazilda", "Zehraoui", , "", role = "aut"),
-      person("Rina", "Razafimahefa", , "", role = c("aut", "cre")
+      person("Rina", "Razafimahefa", , "", role = "cre")
     )
 Description: R6 class and tools to cluster variables (numeric, categorical or mixed)
     using k-means, k-modes and k-prototypes.
