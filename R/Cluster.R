@@ -1,5 +1,8 @@
 
 
+# Base class for K-means, K-modes and K-prototypes variable clustering classes
+
+
 
 
 .Cluster <- R6::R6Class(
@@ -84,7 +87,7 @@
   
   public = list(
     
-    # --- Print methods ---
+    # --- Interpretability methods ---
     
     print = function(...) {
       cat("Variable clustering model\n")
@@ -146,6 +149,87 @@
       cat("\n(The full data.frame is returned as an invisible object)\n")
       
       invisible(var_df)
+    },
+    
+    plot = function(type = "clusters", Ks = NULL, ...) {
+      .types <- c("inertia", "clusters", "membership")
+      if (!(type %in% .types)) {
+        stop("")
+      }
+      
+      if (is.null(private$FX_active) || is.null(private$FClusters)) {
+        stop("Aucun modèle appris. Appelez fit() d'abord.")
+      }
+      
+      X        <- private$FX_active
+      method   <- private$FMethod
+      clusters <- private$FClusters
+      centers  <- private$FCenters
+      
+      if (type == "clusters") {
+        # Barplot des tailles de clusters
+        tab <- table(clusters)
+        graphics::barplot(
+          tab,
+          xlab = "Cluster",
+          ylab = "Nombre de variables",
+          main = "Taille des clusters de variables",
+          col = names(tab)
+        )
+        return(invisible(NULL))
+      }
+      
+      if (type == "membership") {
+        # On réutilise la logique de summary() pour calculer l'adhésion
+        membership <- private$compute_membership(X, clusters, centers)
+        
+        ord <- order(clusters)
+        graphics::barplot(
+          membership$content[ord],
+          names.arg = colnames(X)[ord],
+          las = 2,
+          cex.names = 0.6,
+          xlab = "Variables",
+          ylab = membership$label,
+          main = "Degré d'adhésion des variables à leur cluster",
+          col = clusters,
+          ...
+        )
+        return(ord)
+        return(invisible(NULL))
+      }
+      
+      if (type == "inertia") {
+        # Courbe inertie(K) en relançant l'algo pour plusieurs valeurs de K
+        p <- ncol(X)
+        if (is.null(Ks)) {
+          Ks <- seq_len(min(10L, p))
+        }
+        Ks <- Ks[Ks >= 2]
+        if (length(Ks) == 0L) {
+          stop("Impossible de tracer la courbe d'inertie : K doit être >= 2.")
+        }
+        
+        old_K <- private$FNbGroupes
+        inertias <- numeric(length(Ks))
+        
+        for (i in seq_along(Ks)) {
+          private$FNbGroupes <- as.integer(Ks[i])
+          res_i <- self$fit(X)
+          inertias[i] <- res_i$inertia
+        }
+        
+        private$FNbGroupes <- old_K  # on restaure
+        
+        graphics::plot(
+          Ks, inertias, type = "b",
+          xlab = "K (nombre de clusters)",
+          ylab = "Inertie intra-cluster",
+          main = "Courbe de l'inertie en fonction de K",
+          ...
+        )
+        return(invisible(NULL))
+      }
     },
     
     # --- Getter methods ---

@@ -250,7 +250,7 @@ Kmodes <- R6::R6Class(
       private$FInertia     <- res$inertia
       private$FConvergence <- isTRUE(res$converged)
       
-      invisible(self)
+      invisible(res)
     },
     
     predict = function(X_new) {
