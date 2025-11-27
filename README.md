@@ -1,76 +1,152 @@
 # mmrClustVar
-R package implementing multiple variable clustering algorithms (quantitative and qualitative), with R6-based architecture, interpretability tools, and an interactive Shiny app for visual exploration.
 
----
+R package implementing multiple variable clustering algorithms (numeric, categorical, mixed), with an R6-based architecture, interpretability tools, and an interactive Shiny app.
+
+------------------------------------------------------------------------
 
 ## Overview
 
-**mmrClustVar** is an academic project developed as part of the Master 2 SISE (Statistics and Computer Science for Data Science) at **Université Lyon 2**.
+**mmrClustVar** is an academic R package developed as part of the Master 2 SISE (Statistics & Computer Science for Data Science) at Université Lyon 2.
 
-The goal is to design a **fully functional R package** that implements several **variable clustering** algorithms provides interpretable outputs for data exploration.
+It provides:
 
-Key features include:  
-- Multiple clustering algorithms for quantitative and qualitative variables
-- Automatic or assisted determination of the optimal number of clusters
-- Built-in interpretability tools: summaries, plots, and metrics
-- R6-based architecture by scikit-learn's design
-- Interactive **R Shiny** application for hands-on exploration
-- Complete help documentation and reproducible GitHub tutorial
+- k-means (numeric)
+- k-modes (categorical)
+- k-prototypes (mixed)
+- k-medoids (general)
+- Automatic/assisted selection of K
+- Interpretability tools (inertia, adhesion, profiles)
+- Shiny application for exploration
+- Full export functionalities
 
----
+------------------------------------------------------------------------
 
-## Package structure
+## Repository Structure
 
----
+```         
+mmrClustVar/
+├── DESCRIPTION
+├── NAMESPACE
+├── R/
+│   ├── mmrClustVar.R
+│   ├── mmrClustVarBase.R
+│   ├── mmrClustVarKMeans.R
+│   ├── mmrClustVarKModes.R
+│   ├── mmrClustVarKPrototypes.R
+│   ├── mmrClustVarKMedoids.R
+│   ├── run_app.R
+│   ├── utils_inertia.R
+│   └── datasets_documentation.R
+├── inst/shiny/mmrClustVar_app/
+├── data/
+├── data-raw/prepare_datasets.R
+└── README.md
+```
+
+------------------------------------------------------------------------
 
 ## Installation
 
-Install directly from GitHub
 ```r
-devtools::install_github("rsquaredata/mmrClustVar")
-```
+install.packages("remotes")   # if needed
+remotes::install_github("rsquaredata/mmrClustVar")
 
----
-
-## Usage
-
-Load the package
-```r
 library(mmrClustVar)
 ```
 
----
+------------------------------------------------------------------------
 
-## Authors
+## Quick Start — Using the R6 Class
 
-Marin NAGY ([@marinoo3](https://github.com/marinoo3))  
-Mazilda ZEHRAOUI ([@zehraouimazilda](https://github.com/zehraouimazilda))  
-Rina RAZAFIMAHEFA ([@rsquaredata](https://github.com/rsquaredata))  
+### 1. Fit
 
----
+```r
+df <- iris[,1:4]
 
-## References
+obj <- mmrClustVar$new(
+  method="kmeans",
+  K=3,
+  scale=TRUE
+)
 
-Rakotomalala R., Cours de Programmation R - M2 SISE 2025-2026 \[Teaching material\]  
-The R Foundation. (2024). *The R Journal*. Retrieved from [https://journal.r-project.org](https://journal.r-project.org)  
-Whickham H. (2019). *Advanced R* (2nd ed.). CRC Press. [https//adv-r.hadley.nz](https://adv-r.hadley.nz/)  
-Chang. W (2024). *Encapsulated Classes with reference Semantics* \[R package version 2.5.1.\]. RSTudio, PBC. Retrieved from [https://r6.r-lib.org](https://r6-lib.org)  
+obj$fit(df)
+```
 
-<small>reticulate, mlverse</small>
+### 2. Summary
 
----
+```r
+obj$summary()
+```
 
-## Academic project notice
+### 3. Clusters & Centers
 
-This repository is part of an academic, non-commercial project developed within the Master 2 SISE program at Université Lyon 2.
-it is intended solely for educational and research purposes.
-Any reuse, distribution, or modification for commercial purposes is not authorized withour prior consent from the authors and the supervising instructir.
+```r
+obj$get_clusters()
+obj$get_centers()
+obj$get_inertia()
+```
 
----
+### 4. Predict New Variables
 
-## Licence 
+```r
+obj$predict(df[,1,drop=FALSE])
+```
+
+### 5. Plots
+
+```r
+obj$plot("clusters")
+obj$plot("inertia")
+obj$plot("membership")
+obj$plot("profiles")
+```
+
+### 6. Inertia Path
+
+```r
+obj$compute_inertia_path(K_seq=2:6, X=df)
+obj$plot("inertia")
+```
+
+------------------------------------------------------------------------
+
+# Using the Shiny App
+
+```r
+run_mmrClustVar_app()
+```
+
+Features:
+
+- Import datasets or upload CSV/XLSX  
+- Select active/supplementary variables  
+- All algorithms available  
+- Diagnostics + plots  
+- Export clusters, summary, full ZIP bundle  
+
+------------------------------------------------------------------------
+
+# References
+
+- Chavent et al. (2012), *ClustOfVar: An R Package for the Clustering of Variables*.
+- Husson, Josse & Pagès (2017), *Exploratory Multivariate Analysis by Example using R*.
+- MacQueen (1967), *Some methods for classification and analysis of multivariate observations*.
+- Huang (1998), *Extensions to k-means for categorical values*.
+- Kaufman & Rousseeuw (2005), *Finding Groups in Data*.
+- Rakotomalala (2025), *R programming & classification lectures*.
+- R Core Team (2025), *R Language*.
+- Chang (2025), *R6: Encapsulated object-oriented programming for R*.
+
+------------------------------------------------------------------------
+
+# Authors
+
+- Marin Nagy
+- Mazilda Zehraoui
+- Rina Razafimahefa
+
+------------------------------------------------------------------------
+
+# License
 
 MIT License
-
-
-
