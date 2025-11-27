@@ -146,7 +146,7 @@ Features:
   https://www.researchgate.net/publication/220695963_Finding_Groups_in_Data
 
 - Rakotomalala (2025), *R programming & classification lectures*.  
-  (Cours interne Université Lyon 2 – pas de lien public)
+  https://tutoriels-data-science.blogspot.com/
 
 - R Core Team (2025), *R Language*.  
   https://www.r-project.org/
