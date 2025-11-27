@@ -158,7 +158,7 @@
       }
       
       if (is.null(private$FX_active) || is.null(private$FClusters)) {
-        stop("Aucun modèle appris. Appelez fit() d'abord.")
+        stop("No model has been trained. Call fit() first.")
       }
       
       X        <- private$FX_active
@@ -172,8 +172,8 @@
         graphics::barplot(
           tab,
           xlab = "Cluster",
-          ylab = "Nombre de variables",
-          main = "Taille des clusters de variables",
+          ylab = "Number of variables",
+          main = "Cluster sizes",
           col = names(tab)
         )
         return(invisible(NULL))
@@ -198,11 +198,10 @@
           cex.names = 0.6,
           xlab = "Variables",
           ylab = membership$label,
-          main = "Degré d'adhésion des variables à leur cluster",
+          main = "Degree of variables' membership to their cluster",
           col = data$cluster,
           ...
         )
-        return(membership)
         return(invisible(NULL))
       }
       
@@ -214,7 +213,7 @@
         }
         Ks <- Ks[Ks >= 2]
         if (length(Ks) == 0L) {
-          stop("Impossible de tracer la courbe d'inertie : K doit être >= 2.")
+          stop("Unable to plot the inertia curve: K must be >= 2.")
         }
         
         old_K <- private$FNbGroupes
@@ -230,9 +229,9 @@
         
         graphics::plot(
           Ks, inertias, type = "b",
-          xlab = "K (nombre de clusters)",
-          ylab = "Inertie intra-cluster",
-          main = "Courbe de l'inertie en fonction de K",
+          xlab = "K (number of clusters)",
+          ylab = "Intra-cluster inertia",
+          main = "Inertia curve as a function of K",
           ...
         )
         return(invisible(NULL))
