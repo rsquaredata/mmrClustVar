@@ -34,6 +34,21 @@ devtools: install_github("rsquaredata/mmrClustVar")
 ---
 
 ## Usage
+```r
+library(mmrClustVar)
+
+actives <- mtcars[, 1:6]
+descriptives <- mtcars[, 7:11]
+
+model <- Kmeans$new(K=3)
+model$fit(descriptives)
+model$predict(descriptives)
+
+print(model)
+plot(model, type="membership")
+
+clusters <- model$get_clusters()
+```
 
 ---
 
