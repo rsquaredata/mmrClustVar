@@ -26,9 +26,11 @@ Key features include:
 ## Installation
 
 ```r
+# Install remotes if not already installed
+install.packages("remotes")
+
 # install directly from GitHub
-devtools: install_github("rsquaredata/mmrClustVar")
-# load the package
+remotes::install_github("rsquaredata/mmrClustVar")
 ```
 
 ---
