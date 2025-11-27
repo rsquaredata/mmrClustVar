@@ -101,6 +101,11 @@ ui <- fluidPage(
                 ),
                 
                 tabPanel(
+                    "Interpretation",
+                    verbatimTextOutput("cluster_interpretation")
+                ),
+                
+                tabPanel(
                     "Clusters",
                     tableOutput("cluster_table"),
                     tableOutput("cluster_sizes"),
@@ -277,6 +282,12 @@ server <- function(input, output, session) {
         obj <- model_obj()
         req(obj)
         obj$summary()
+    })
+    
+    output$cluster_interpretation <- renderPrint({
+        obj <- model_obj()
+        req(obj)
+        obj$interpret_clusters()
     })
     
     

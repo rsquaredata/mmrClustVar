@@ -11,6 +11,152 @@ mmrClustVarKMeans <- R6::R6Class(
                 lambda      = lambda,
                 method_name = "kmeans"
             )
+        },
+        
+        #' @description
+        #' Textual interpretation of the k-means variable clustering solution.
+        #'
+        #' For each cluster, this method reports:
+        #'   - the number of variables (all numeric),
+        #'   - a few most representative variables (highest r^2 to the local PC),
+        #'   - simple membership statistics based on r^2.
+        #'
+        #' The "distance" is defined as 1 - r^2(x_j, PC_k),
+        #' and the "adhesion" as r^2(x_j, PC_k).
+        #'
+        #' @param style "compact" or "detailed".
+        interpret_clusters = function(style = c("compact", "detailed")) {
+            style <- match.arg(style)
+            
+            X <- private$FX_active
+            clusters <- private$FClusters
+            
+            if (is.null(X) || is.null(clusters)) {
+                stop("[mmrClustVarKMeans] interpret_clusters(): no fitted model or missing state.")
+            }
+            
+            p <- ncol(X)
+            K <- private$FNbGroupes
+            
+            # type check
+            is_num <- vapply(X, is.numeric, logical(1L))
+            if (!all(is_num)) {
+                warning("[mmrClustVarKMeans] Some non-numeric variables detected; ",
+                        "only numeric variables are used for interpretation.")
+            }
+            
+            distance <- rep(NA_real_, p)
+            adhesion <- rep(NA_real_, p)
+            type_var <- ifelse(is_num, "numeric", "other")
+            
+            # work on numeric part only
+            X_num <- as.matrix(X[, is_num, drop = FALSE])
+            idx_num <- which(is_num)
+            
+            # for each cluster, compute a local PC1, then r^2 to that PC
+            for (k in seq_len(K)) {
+                vars_k <- which(clusters == k & is_num)
+                if (length(vars_k) == 0L) next
+                
+                # local numeric matrix for this cluster
+                cols_k_num <- match(vars_k, idx_num)
+                Xk <- X_num[, cols_k_num, drop = FALSE]
+                
+                # standardise by column
+                Xk_std <- scale(Xk)
+                
+                # local PCA
+                pc <- stats::prcomp(Xk_std, center = FALSE, scale. = FALSE)
+                score1 <- pc$x[, 1]
+                
+                # compute r^2(x_j, PC1_k) for variables in this cluster
+                for (j in vars_k) {
+                    xj <- scale(X[, j])
+                    r <- suppressWarnings(
+                        stats::cor(xj, score1, use = "pairwise.complete.obs")
+                    )
+                    if (is.na(r)) r <- 0
+                    distance[j] <- 1 - r^2
+                    adhesion[j] <- r^2
+                }
+            }
+            
+            df <- data.frame(
+                variable = colnames(X),
+                type     = type_var,
+                cluster  = as.integer(clusters),
+                distance = distance,
+                adhesion = adhesion,
+                stringsAsFactors = FALSE
+            )
+            
+            n_num <- sum(type_var == "numeric")
+            
+            cat("=== Global overview (k-means, variable clustering) ===\n")
+            cat("Number of clusters :", K, "\n")
+            cat("Number of variables:", p,
+                sprintf("(%d numeric, %d other)\n", n_num, p - n_num))
+            cat("\n")
+            
+            # per-cluster interpretation
+            for (k in seq_len(K)) {
+                df_k <- df[df$cluster == k & df$type == "numeric", , drop = FALSE]
+                
+                cat(sprintf("--- Cluster %d ---\n", k))
+                
+                if (nrow(df_k) == 0L) {
+                    cat("Cluster contains no numeric variables.\n\n")
+                    next
+                }
+                
+                size_k <- nrow(df_k)
+                cat(sprintf("Size: %d numeric variables.\n", size_k))
+                
+                adh_mean_k <- mean(df_k$adhesion, na.rm = TRUE)
+                adh_min_k  <- min(df_k$adhesion, na.rm = TRUE)
+                adh_max_k  <- max(df_k$adhesion, na.rm = TRUE)
+                
+                # top variables by adhesion
+                o_k   <- order(df_k$adhesion, decreasing = TRUE)
+                top_k <- df_k[o_k, , drop = FALSE]
+                if (nrow(top_k) > 3L) {
+                    top_k <- top_k[seq_len(3L), , drop = FALSE]
+                }
+                
+                if (style == "compact") {
+                    cat("Most representative variables (top by r^2 to the local PC):\n")
+                    for (i in seq_len(nrow(top_k))) {
+                        cat(sprintf("  - %s (adhesion r^2 = %.3f)\n",
+                                    top_k$variable[i],
+                                    top_k$adhesion[i]))
+                    }
+                    cat("Membership statistics (based on r^2):\n")
+                    cat(sprintf("  - Mean adhesion: %.3f\n", adh_mean_k))
+                    cat(sprintf("  - Min / Max adhesion: %.3f / %.3f\n",
+                                adh_min_k, adh_max_k))
+                    cat("Interpretation:\n")
+                    cat("  This cluster groups numeric variables that share a strong\n")
+                    cat("  common latent component (local principal component).\n\n")
+                    
+                } else {  # detailed
+                    cat("Most representative variables (top 3 by r^2 to the local PC):\n")
+                    for (i in seq_len(nrow(top_k))) {
+                        cat(sprintf("  - %s (adhesion r^2 = %.3f)\n",
+                                    top_k$variable[i],
+                                    top_k$adhesion[i]))
+                    }
+                    cat("Membership statistics (based on r^2):\n")
+                    cat(sprintf("  - Mean adhesion: %.3f\n", adh_mean_k))
+                    cat(sprintf("  - Min / Max adhesion: %.3f / %.3f\n",
+                                adh_min_k, adh_max_k))
+                    cat("Interpretation:\n")
+                    cat("  This cluster is characterised by a local principal component\n")
+                    cat("  that summarises the behaviour of its variables; those with\n")
+                    cat("  high r^2 are the most typical members of the group.\n\n")
+                }
+            }
+            
+            invisible(df)
         }
     ),
     

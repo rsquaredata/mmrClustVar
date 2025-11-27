@@ -30,6 +30,7 @@ the main methods: \code{$fit()}, \code{$predict()},
 \item \href{#method-mmrClustVar-get_convergence}{\code{mmrClustVar$get_convergence()}}
 \item \href{#method-mmrClustVar-get_method}{\code{mmrClustVar$get_method()}}
 \item \href{#method-mmrClustVar-get_K}{\code{mmrClustVar$get_K()}}
+\item \href{#method-mmrClustVar-interpret_clusters}{\code{mmrClustVar$interpret_clusters()}}
 \item \href{#method-mmrClustVar-clone}{\code{mmrClustVar$clone()}}
 }
 }
@@ -216,10 +217,20 @@ Returns the requested method.
 \if{latex}{\out{\hypertarget{method-mmrClustVar-get_K}{}}}
 \subsection{Method \code{get_K()}}{
 Returns the requested number of clusters K.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_K()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-mmrClustVar-interpret_clusters"></a>}}
+\if{latex}{\out{\hypertarget{method-mmrClustVar-interpret_clusters}{}}}
+\subsection{Method \code{interpret_clusters()}}{
+Human-readable interpretation of variable clusters.
 Internal helper: build the appropriate engine
 depending on the selected method.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$get_K()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{mmrClustVar$interpret_clusters(...)}\if{html}{\out{</div>}}
 }
 
 }

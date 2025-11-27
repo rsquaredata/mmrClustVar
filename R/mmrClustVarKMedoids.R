@@ -11,6 +11,220 @@ mmrClustVarKMedoids <- R6::R6Class(
                 lambda      = lambda,
                 method_name = "kmedoids"
             )
+        },
+        
+        #' @description
+        #' Textual interpretation of the k-medoids solution.
+        #' 
+        #' @param style "compact" or "detailed".
+        interpret_clusters = function(style = c("compact", "detailed")) {
+            style <- match.arg(style)
+            
+            X <- private$FX_active
+            clusters <- private$FClusters
+            centers  <- private$FCenters
+            
+            if (is.null(X) || is.null(clusters) || is.null(centers)) {
+                stop("[mmrClustVarKMedoids] interpret(): no fitted model or missing internal state.")
+            }
+            
+            n <- nrow(X)
+            p <- ncol(X)
+            K <- private$FNbGroupes
+            
+            # types
+            is_num <- vapply(X, is.numeric, logical(1L))
+            is_cat <- (!is_num) & vapply(
+                X,
+                function(col) is.factor(col) || is.character(col),
+                logical(1L)
+            )
+            
+            # helper distance (same as summary_membership / predict_one_variable)
+            dist_pair <- function(x1, x2, type1, type2) {
+                if (type1 == "num" && type2 == "num") {
+                    r <- suppressWarnings(
+                        stats::cor(x1, x2, use = "pairwise.complete.obs")
+                    )
+                    if (is.na(r)) r <- 0
+                    return(1 - r^2)
+                } else if (type1 == "cat" && type2 == "cat") {
+                    x1c <- as.character(x1)
+                    x2c <- as.character(x2)
+                    mismatch <- (x1c != x2c)
+                    d <- mean(mismatch, na.rm = TRUE)
+                    if (is.na(d)) d <- 1
+                    return(d)
+                } else {
+                    # mixed types: maximal distance
+                    return(1)
+                }
+            }
+            
+            # compute distance / adhesion for each variable to its cluster medoid
+            medoid_index <- vapply(centers, function(c) c$medoid_index, integer(1L))
+            
+            distance <- numeric(p)
+            adhesion <- numeric(p)
+            type_var <- character(p)
+            
+            for (j in seq_len(p)) {
+                k <- clusters[j]
+                m <- medoid_index[k]
+                
+                xj <- X[, j]
+                xm <- X[, m]
+                
+                type_j <- if (is_num[j]) "num" else if (is_cat[j]) "cat" else "other"
+                type_m <- if (is_num[m]) "num" else if (is_cat[m]) "cat" else "other"
+                
+                d <- dist_pair(xj, xm, type_j, type_m)
+                distance[j] <- d
+                adhesion[j] <- 1 - d
+                type_var[j] <- if (is_num[j]) "numeric" else if (is_cat[j]) "categorical" else "other"
+            }
+            
+            df <- data.frame(
+                variable = colnames(X),
+                type     = type_var,
+                cluster  = as.integer(clusters),
+                distance = distance,
+                adhesion = adhesion,
+                stringsAsFactors = FALSE
+            )
+            
+            # global counts
+            n_num <- sum(type_var == "numeric")
+            n_cat <- sum(type_var == "categorical")
+            
+            cat("=== Global overview (k-medoids) ===\n")
+            cat("Number of clusters :", K, "\n")
+            cat("Number of variables:", p,
+                sprintf("(%d numeric, %d categorical)\n", n_num, n_cat))
+            cat("\n")
+            
+            # per-cluster interpretation
+            for (k in seq_len(K)) {
+                df_k <- df[df$cluster == k, , drop = FALSE]
+                
+                cat(sprintf("--- Cluster %d ---\n", k))
+                
+                if (nrow(df_k) == 0L) {
+                    cat("Cluster is empty.\n\n")
+                    next
+                }
+                
+                size_k   <- nrow(df_k)
+                n_num_k  <- sum(df_k$type == "numeric")
+                n_cat_k  <- sum(df_k$type == "categorical")
+                
+                cat(sprintf("Size: %d variables (%d numeric, %d categorical).\n",
+                            size_k, n_num_k, n_cat_k))
+                
+                # medoid info
+                med_idx <- medoid_index[k]
+                med_name <- if (!is.na(med_idx)) colnames(X)[med_idx] else NA_character_
+                med_type <- if (!is.na(med_idx)) {
+                    if (is_num[med_idx]) "numeric"
+                    else if (is_cat[med_idx]) "categorical"
+                    else "other"
+                } else {
+                    "unknown"
+                }
+                cat(sprintf("Medoid variable: %s (%s).\n",
+                            med_name, med_type))
+                
+                # cluster-level stats
+                adh_mean_k <- mean(df_k$adhesion, na.rm = TRUE)
+                adh_min_k  <- min(df_k$adhesion, na.rm = TRUE)
+                adh_max_k  <- max(df_k$adhesion, na.rm = TRUE)
+                
+                # top variables by adhesion
+                o_k   <- order(df_k$adhesion, decreasing = TRUE)
+                top_k <- df_k[o_k, , drop = FALSE]
+                if (nrow(top_k) > 3L) {
+                    top_k <- top_k[seq_len(3L), , drop = FALSE]
+                }
+                
+                if (style == "compact") {
+                    cat("Most representative variables (top by adhesion to the medoid):\n")
+                    for (i in seq_len(nrow(top_k))) {
+                        cat(sprintf("  - %s (%s), adhesion = %.3f\n",
+                                    top_k$variable[i],
+                                    top_k$type[i],
+                                    top_k$adhesion[i]))
+                    }
+                    cat("Global membership statistics:\n")
+                    cat(sprintf("  - Mean adhesion: %.3f\n", adh_mean_k))
+                    cat(sprintf("  - Min / Max adhesion: %.3f / %.3f\n",
+                                adh_min_k, adh_max_k))
+                    cat("Interpretation:\n")
+                    cat("  This cluster groups variables that are mutually similar\n")
+                    cat("  according to the dissimilarity to the medoid variable.\n\n")
+                    
+                } else if (style == "detailed") {
+                    
+                    cat("Most representative variables (top 3 by adhesion to the medoid):\n")
+                    for (i in seq_len(nrow(top_k))) {
+                        cat(sprintf("  - %s (%s), adhesion = %.3f\n",
+                                    top_k$variable[i],
+                                    top_k$type[i],
+                                    top_k$adhesion[i]))
+                    }
+                    
+                    cat("Global membership statistics:\n")
+                    cat(sprintf("  - Mean adhesion: %.3f\n", adh_mean_k))
+                    cat(sprintf("  - Min / Max adhesion: %.3f / %.3f\n",
+                                adh_min_k, adh_max_k))
+                    
+                    # dominant modalities for categorical variables (up to 3)
+                    idx_cat_k <- which(df_k$type == "categorical")
+                    if (length(idx_cat_k) > 0L) {
+                        cat("Dominant categorical profiles:\n")
+                        
+                        # préparation matrice catégorielle
+                        X_cat <- as.data.frame(
+                            lapply(X[, is_cat, drop = FALSE], as.character),
+                            stringsAsFactors = FALSE
+                        )
+                        X_cat_mat <- as.matrix(X_cat)
+                        idx_cat_global <- which(is_cat)
+                        
+                        # on prend au plus 3 variables catégorielles
+                        idx_cat_k <- idx_cat_k[seq_len(min(3L, length(idx_cat_k)))]
+                        
+                        for (i_idx in idx_cat_k) {
+                            var_name <- df_k$variable[i_idx]
+                            # position de cette variable dans X
+                            j_global <- which(colnames(X) == var_name)
+                            if (length(j_global) != 1L) next
+                            
+                            # colonne correspondante dans X_cat_mat
+                            cpos <- match(j_global, idx_cat_global)
+                            if (is.na(cpos)) next
+                            
+                            col <- X_cat_mat[, cpos]
+                            col_no_na <- col[!is.na(col)]
+                            if (length(col_no_na) == 0L) next
+                            
+                            tab <- table(col_no_na)
+                            mode_val <- names(tab)[which.max(tab)]
+                            prop_val <- max(tab) / length(col_no_na)
+                            
+                            cat(sprintf("  - %s: dominant modality '%s' (%.1f%% of observations)\n",
+                                        var_name, mode_val, 100 * prop_val))
+                        }
+                    }
+                    
+                    cat("Interpretation:\n")
+                    cat("  This cluster is centred around the medoid variable and groups\n")
+                    cat("  other variables that show a similar pattern according to the\n")
+                    cat("  chosen dissimilarity (1 - r^2 for numeric, simple matching for\n")
+                    cat("  categorical, maximal distance for mixed types).\n\n")
+                }
+            }
+            
+            invisible(df)
         }
     ),
     

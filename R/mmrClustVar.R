@@ -224,7 +224,24 @@ mmrClustVar <- R6::R6Class(
         
         #' @description
         #' Returns the requested number of clusters K.
-        get_K = function() private$K
+        get_K = function() private$K,
+        
+        #' @description
+        #' Human-readable interpretation of variable clusters.
+        interpret_clusters = function(...) {
+            if (is.null(private$engine)) {
+                cat("[mmrClustVar] interpret_clusters(): no fitted model.\n")
+                return(invisible(NULL))
+            }
+            
+            # check that the engine exposes this method
+            if (!("interpret_clusters" %in% names(private$engine))) {
+                cat("[mmrClustVar] interpret_clusters(): not available for this engine.\n")
+                return(invisible(NULL))
+            }
+            
+            private$engine$interpret_clusters(...)
+        }
     ),
     
     private = list(
@@ -250,10 +267,11 @@ mmrClustVar <- R6::R6Class(
             # Automatic method selection based on variable types
             if (identical(method, "auto")) {
                 
-                is_num <- vapply(X, is.numeric, logical(1L))
-                is_cat <- (!is_num) & vapply(
+                is_num <- vapply(X, is.double, logical(1L))
+                
+                is_cat <- vapply(
                     X,
-                    function(col) is.factor(col) || is.character(col),
+                    function(col) is.factor(col) || is.character(col) || is.integer(col),
                     logical(1L)
                 )
                 

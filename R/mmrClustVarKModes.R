@@ -11,7 +11,165 @@ mmrClustVarKModes <- R6::R6Class(
                 lambda      = lambda,
                 method_name = "kmodes"
             )
-        }
+        },
+        
+        #' @description
+        #' Textual interpretation of the k-modes variable clustering solution.
+        #'
+        #' For each cluster, this method reports:
+        #'   - the number of variables (categorical),
+        #'   - a few most representative variables (highest agreement with the
+        #'     cluster modal profile),
+        #'   - simple membership statistics based on this agreement.
+        #'
+        #' The "distance" is defined as 1 - proportion of matches with the
+        #' cluster-level modal profile, and "adhesion" as that proportion.
+        #'
+        #' @param style "compact" or "detailed".
+        interpret_clusters = function(style = c("compact", "detailed")) {
+            style <- match.arg(style)
+            
+            X <- private$FX_active
+            clusters <- private$FClusters
+            
+            if (is.null(X) || is.null(clusters)) {
+                stop("[mmrClustVarKModes] interpret_clusters(): no fitted model or missing state.")
+            }
+            
+            p <- ncol(X)
+            K <- private$FNbGroupes
+            
+            is_cat <- vapply(
+                X,
+                function(col) is.factor(col) || is.character(col),
+                logical(1L)
+            )
+            if (!all(is_cat)) {
+                warning("[mmrClustVarKModes] Some non-categorical variables detected; ",
+                        "only categorical variables are used for interpretation.")
+            }
+            
+            type_var <- ifelse(is_cat, "categorical", "other")
+            
+            X_cat <- as.data.frame(
+                lapply(X[, is_cat, drop = FALSE], as.character),
+                stringsAsFactors = FALSE
+            )
+            X_cat_mat <- as.matrix(X_cat)
+            idx_cat_global <- which(is_cat)
+            
+            distance <- rep(NA_real_, p)
+            adhesion <- rep(NA_real_, p)
+            
+            n <- nrow(X_cat_mat)
+            
+            # for each cluster, build a cluster-level modal profile by individual,
+            # then compute the agreement of each variable with that profile
+            for (k in seq_len(K)) {
+                vars_k <- which(clusters == k & is_cat)
+                if (length(vars_k) == 0L) next
+                
+                cols_k_cat <- match(vars_k, idx_cat_global)
+                mat_k <- X_cat_mat[, cols_k_cat, drop = FALSE]
+                
+                # cluster-level modal profile by individual (majority category)
+                modal_profile <- apply(mat_k, 1, function(row) {
+                    row_no_na <- row[!is.na(row)]
+                    if (length(row_no_na) == 0L) return(NA_character_)
+                    tab <- table(row_no_na)
+                    names(tab)[which.max(tab)]
+                })
+                
+                # agreement for each variable of the cluster
+                for (j in vars_k) {
+                    cpos <- match(j, idx_cat_global)
+                    if (is.na(cpos)) next
+                    
+                    col_j <- X_cat_mat[, cpos]
+                    agree <- (col_j == modal_profile)
+                    prop_agree <- mean(agree, na.rm = TRUE)
+                    if (is.na(prop_agree)) prop_agree <- 0
+                    
+                    adhesion[j] <- prop_agree
+                    distance[j] <- 1 - prop_agree
+                }
+            }
+            
+            df <- data.frame(
+                variable = colnames(X),
+                type     = type_var,
+                cluster  = as.integer(clusters),
+                distance = distance,
+                adhesion = adhesion,
+                stringsAsFactors = FALSE
+            )
+            
+            n_cat <- sum(type_var == "categorical")
+            
+            cat("=== Global overview (k-modes, variable clustering) ===\n")
+            cat("Number of clusters :", K, "\n")
+            cat("Number of variables:", p,
+                sprintf("(%d categorical, %d other)\n", n_cat, p - n_cat))
+            cat("\n")
+            
+            for (k in seq_len(K)) {
+                df_k <- df[df$cluster == k & df$type == "categorical", , drop = FALSE]
+                
+                cat(sprintf("--- Cluster %d ---\n", k))
+                
+                if (nrow(df_k) == 0L) {
+                    cat("Cluster contains no categorical variables.\n\n")
+                    next
+                }
+                
+                size_k <- nrow(df_k)
+                cat(sprintf("Size: %d categorical variables.\n", size_k))
+                
+                adh_mean_k <- mean(df_k$adhesion, na.rm = TRUE)
+                adh_min_k  <- min(df_k$adhesion, na.rm = TRUE)
+                adh_max_k  <- max(df_k$adhesion, na.rm = TRUE)
+                
+                o_k   <- order(df_k$adhesion, decreasing = TRUE)
+                top_k <- df_k[o_k, , drop = FALSE]
+                if (nrow(top_k) > 3L) {
+                    top_k <- top_k[seq_len(3L), , drop = FALSE]
+                }
+                
+                if (style == "compact") {
+                    cat("Most representative variables (top by agreement with the cluster modal profile):\n")
+                    for (i in seq_len(nrow(top_k))) {
+                        cat(sprintf("  - %s (adhesion = %.3f)\n",
+                                    top_k$variable[i],
+                                    top_k$adhesion[i]))
+                    }
+                    cat("Membership statistics:\n")
+                    cat(sprintf("  - Mean adhesion: %.3f\n", adh_mean_k))
+                    cat(sprintf("  - Min / Max adhesion: %.3f / %.3f\n",
+                                adh_min_k, adh_max_k))
+                    cat("Interpretation:\n")
+                    cat("  This cluster groups categorical variables that tend to\n")
+                    cat("  share the same dominant categories across individuals.\n\n")
+                    
+                } else {  # detailed
+                    cat("Most representative variables (top 3 by agreement with the modal profile):\n")
+                    for (i in seq_len(nrow(top_k))) {
+                        cat(sprintf("  - %s (adhesion = %.3f)\n",
+                                    top_k$variable[i],
+                                    top_k$adhesion[i]))
+                    }
+                    cat("Membership statistics:\n")
+                    cat(sprintf("  - Mean adhesion: %.3f\n", adh_mean_k))
+                    cat(sprintf("  - Min / Max adhesion: %.3f / %.3f\n",
+                                adh_min_k, adh_max_k))
+                    cat("Interpretation:\n")
+                    cat("  This cluster is characterised by a shared modal pattern\n")
+                    cat("  across individuals; variables with high adhesion follow\n")
+                    cat("  this pattern closely.\n\n")
+                }
+            }
+            
+            invisible(df)
+        }     
     ),
     
     private = list(
