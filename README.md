@@ -47,8 +47,14 @@ mmrClustVar/
 
 ## Installation
 
-``` r
-devtools::install_github("username/mmrClustVar")
+```r
+# Install remotes if not already installed
+install.packages("remotes")
+
+# install directly from GitHub
+remotes::install_github("rsquaredata/mmrClustVar")
+
+# Import library
 library(mmrClustVar)
 ```
 

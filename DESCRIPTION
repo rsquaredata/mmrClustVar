@@ -5,7 +5,7 @@ Authors@R:
     c(
       person(given = "Marin", family = "Nagy", role = "aut"),
       person(given = "Mazilda", family = "Zehraoui", role = "aut"),
-      person(given = "Rina", family = "Razafimahefa", role = c("aut", "cre"))
+      person(given = "Rina", family = "Razafimahefa", role = c("aut", "cre"), email = "n.razafimahefa@univ-lyon2.fr")
     )
 Description: R6-based tools to cluster variables (numeric, categorical or mixed)
     using k-means, k-modes, k-prototypes and k-medoids. The package provides a 

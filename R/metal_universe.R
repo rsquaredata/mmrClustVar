@@ -1,0 +1,28 @@
+#' metal_universe dataset
+#'
+#' A synthetic mixed-type dataset about 100 metal bands, designed for
+#' demonstration purposes inside the mmrClustVar Shiny app.  
+#' It contains both numerical variables (e.g., BPM, energy, loudness)
+#' and categorical descriptors (e.g., subgenre, country, lyrical theme).
+#'
+#' @format A data frame with 100 rows and 99 variables:
+#' \describe{
+#'   \item{band}{Character. Band name.}
+#'   \item{num_bpm}{Numeric. Average BPM.}
+#'   \item{num_energy}{Numeric. Energy score.}
+#'   \item{cat_subgenre}{Factor. Metal subgenre.}
+#'   \item{cat_country}{Factor. Country of origin.}
+#'   \item{cat_theme}{Factor. Main lyrical theme.}
+#'   \item{...}{Other numerical and categorical descriptors.}
+#' }
+#'
+#' @details
+#' This dataset is mostly fictional and was created for pedagogical
+#' purposes, to demonstrate variable clustering (k-means, k-modes,
+#' k-prototypes, k-medoids) in the mmrClustVar package.
+#'
+#' @source  
+#' Fictional + manually curated band names from Wikipedia (metal subgenres).  
+#'
+#' @usage data(metal_universe)
+"metal_universe"

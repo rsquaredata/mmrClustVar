@@ -29,9 +29,10 @@ ui <- fluidPage(
                         "titanic_cat",
                         "housevotes_cat",
                         "credit_mix",
-                        "adult_small_mix"
+                        "adult_small",
+                        "metal_universe"
                     ),
-                    selected = "iris_num"
+                    selected = "metal_universe"
                 )
             ),
             
@@ -117,10 +118,11 @@ ui <- fluidPage(
                     selectInput(
                         "plot_type", "Plot type:",
                         choices = c(
-                            "Inertia (elbow method)" = "inertia",
-                            "Clusters"               = "clusters",
-                            "Membership"             = "membership",
-                            "Profiles / heatmaps"    = "profiles"
+                            "Inertia (elbow method)"   = "inertia",
+                            "Clusters"                 = "clusters",
+                            "Membership"               = "membership",
+                            "Profiles / heatmaps"      = "profiles",
+                            "Factor map / dendrogram"  = "factor_map"
                         )
                     ),
                     plotOutput("plot")
@@ -391,6 +393,115 @@ server <- function(input, output, session) {
             
         } else if (input$plot_type == "profiles") {
             obj$plot(type = "profiles")
+            
+        } else if (input$plot_type == "factor_map") {
+            
+            df <- dataset()
+            req(input$active_vars)
+            X <- df[, input$active_vars, drop = FALSE]
+            p <- ncol(X)
+            
+            if (p < 2L) {
+                plot.new()
+                title("At least 2 active variables are required for a factor map.")
+                return()
+            }
+            
+            method   <- tryCatch(obj$get_method(),   error = function(e) NA)
+            clusters <- tryCatch(obj$get_clusters(), error = function(e) NULL)
+            centers  <- tryCatch(obj$get_centers(),  error = function(e) NULL)
+            
+            # --- Helper: universal Gower dendrogram on centers/prototypes -----
+            plot_gower_dendrogram <- function(centers) {
+                if (!requireNamespace("cluster", quietly = TRUE)) {
+                    plot.new()
+                    title("The 'cluster' package is required to compute Gower distance.")
+                    return()
+                }
+                
+                if (is.null(centers)) {
+                    plot.new()
+                    title("No centers/prototypes available to build a dendrogram.")
+                    return()
+                }
+                
+                df_centers <- tryCatch(
+                    as.data.frame(centers),
+                    error = function(e) NULL
+                )
+                if (is.null(df_centers) || nrow(df_centers) < 2L) {
+                    plot.new()
+                    title("Not enough centers/prototypes to build a dendrogram.")
+                    return()
+                }
+                
+                # Gower distance for mixed data (numeric + categorical)
+                gower_dist <- cluster::daisy(df_centers, metric = "gower")
+                hc <- stats::hclust(gower_dist)
+                plot(hc,
+                     main = "Cluster dendrogram (Gower distance on centers)",
+                     xlab = "",
+                     sub  = "")
+            }
+            
+            # --- Case 1: k-means → PCA factor map with thresholds on p --------
+            if (!is.na(method) && method == "kmeans") {
+                
+                # All active variables must be numeric for PCA on variables
+                is_num <- vapply(X, is.numeric, logical(1L))
+                if (!all(is_num)) {
+                    # Si les variables ne sont pas toutes numériques → on passe directement
+                    # au dendrogramme Gower sur les centres
+                    plot_gower_dendrogram(centers)
+                    return()
+                }
+                
+                # Remove rows with NA to avoid prcomp complaining
+                X_clean <- stats::na.omit(X)
+                if (nrow(X_clean) < 2L) {
+                    plot.new()
+                    title("Not enough complete rows to compute PCA.")
+                    return()
+                }
+                
+                pca <- stats::prcomp(X_clean, center = TRUE, scale. = TRUE)
+                coords <- pca$rotation[, 1:2, drop = FALSE]  # variables in PC1–PC2
+                var_names <- rownames(coords)
+                
+                # Colors by cluster if available and length matches number of variables
+                col_vec <- rep(1L, nrow(coords))
+                if (!is.null(clusters) && length(clusters) == nrow(coords)) {
+                    col_vec <- as.integer(as.factor(clusters))
+                }
+                
+                # Threshold logic on p
+                if (p <= 80L) {
+                    # Factor map (labels if p <= 20, otherwise just points)
+                    plot(
+                        coords[, 1], coords[, 2],
+                        type = "n",
+                        xlab = "PC1", ylab = "PC2",
+                        main = "PCA factor map (variables)"
+                    )
+                    abline(h = 0, v = 0, col = "grey80")
+                    points(coords[, 1], coords[, 2], pch = 19, col = col_vec)
+                    
+                    if (p <= 20L) {
+                        text(
+                            coords[, 1], coords[, 2],
+                            labels = var_names,
+                            pos = 3, cex = 0.7
+                        )
+                    }
+                } else {
+                    # p > 80 → Gower dendrogram on centers
+                    plot_gower_dendrogram(centers)
+                }
+                
+                # --- Case 2: other methods → universal Gower dendrogram ----------
+            } else {
+                plot_gower_dendrogram(centers)
+            }
         }
     })
     
@@ -531,7 +642,7 @@ server <- function(input, output, session) {
             
             writeLines("===== Plots =====", con)
             writeLines(
-                "Plots (inertia, cluster distribution, membership, profiles) must be saved separately from the 'Plots' tab.",
+                "Plots (inertia, cluster distribution, membership, profiles, factor map / dendrogram) must be saved separately from the 'Plots' tab.",
                 con
             )
         }
