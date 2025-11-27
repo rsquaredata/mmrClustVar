@@ -14,7 +14,8 @@ Authors@R:
       person(
         given = "Rina", 
         family = "Razafimahefa",
-        role = c("aut", "cre"))
+        role = c("aut", "cre")),
+        email = "n.razafimahefa@univ-lyon2.fr"
     )
 Description: R6 class and tools to cluster variables (numeric, categorical or mixed)
     using k-means, k-modes and k-prototypes.
