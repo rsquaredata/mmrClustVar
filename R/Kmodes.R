@@ -1,28 +1,27 @@
 #' K-modes for variable clustering (categorical variables only)
 #'
-#' Internal R6 class implementing a k-modes-like algorithm for clustering
+#' R6 class implementing a k-modes-like algorithm for clustering
 #' \emph{variables} (columns) when all active variables are categorical.
 #'
-#' This class is not intended to be used directly by end users. They should use
-#' the facade \code{mmrClustVar} instead.
-#'
 #' @docType class
-#' @name mmrClustVarKModes
-#' @keywords internal
-#' @noRd
-mmrClustVarKModes <- R6::R6Class(
-  "mmrClustVarKModes",
-  inherit = mmrClustVarBase,
+#' @name Kmodes
+#' @export
+Kmodes <- R6::R6Class(
+  "Kmodes",
+  inherit = .ClusterBase,
 
   public = list(
-
-    initialize = function(K, scale = TRUE, lambda = 1, ...) {
-      # scale and lambda are ignored for k-modes, but kept for API consistency
+    
+    #' @description
+    #' Create a new Kmodes instance
+    #' @param K Number of cluster
+    #' @param scale A boolean defining whether to scale the data or not
+    #' @param random_state The random seed to use
+    initialize = function(K, random_state = NULL) {
       super$initialize(
         K           = K,
-        scale       = scale,
-        lambda      = lambda,
-        method_name = "kmodes"
+        method_name = "kmodes",
+        random_state = random_state
       )
     },
 
@@ -46,7 +45,7 @@ mmrClustVarKModes <- R6::R6Class(
       clusters <- private$FClusters
 
       if (is.null(X) || is.null(clusters)) {
-        stop("[mmrClustVarKModes] interpret_clusters(): no fitted model or missing state.")
+        stop("[Kmodes] interpret_clusters(): no fitted model or missing state.")
       }
 
       p <- ncol(X)
@@ -58,7 +57,7 @@ mmrClustVarKModes <- R6::R6Class(
         logical(1L)
       )
       if (!all(is_cat)) {
-        warning("[mmrClustVarKModes] Some non-categorical variables detected; ",
+        warning("[Kmodes] Some non-categorical variables detected; ",
                 "only categorical variables are used for interpretation.")
       }
 
@@ -200,7 +199,7 @@ mmrClustVarKModes <- R6::R6Class(
         logical(1L)
       )
       if (!all(is_cat)) {
-        stop("[mmrClustVarKModes] All variables must be categorical.")
+        stop("[Kmodes] All variables must be categorical.")
       }
 
       # Work with a character matrix for simplicity
@@ -212,7 +211,7 @@ mmrClustVarKModes <- R6::R6Class(
       K <- private$FNbGroupes
 
       if (K > p) {
-        stop("[mmrClustVarKModes] K cannot exceed the number of variables.")
+        stop("[Kmodes] K cannot exceed the number of variables.")
       }
 
       max_iter  <- 50L
@@ -324,12 +323,12 @@ mmrClustVarKModes <- R6::R6Class(
     predict_one_variable = function(x_new, var_name) {
 
       if (!(is.factor(x_new) || is.character(x_new))) {
-        stop("[mmrClustVarKModes] predict() requires a categorical variable.")
+        stop("[Kmodes] predict() requires a categorical variable.")
       }
 
       centers <- private$FCenters
       if (is.null(centers)) {
-        stop("[mmrClustVarKModes] No prototypes available (did you run fit()?).")
+        stop("[Kmodes] No prototypes available (did you run fit()?).")
       }
 
       x_char <- as.character(x_new)
@@ -449,7 +448,7 @@ mmrClustVarKModes <- R6::R6Class(
     plot_membership_impl = function() {
       X <- private$FX_active
       if (is.null(X)) {
-        stop("[mmrClustVarKModes] plot(type='membership'): no active X available.")
+        stop("[Kmodes] plot(type='membership'): no active X available.")
       }
 
       X_char <- as.data.frame(lapply(X, as.character), stringsAsFactors = FALSE)
@@ -486,7 +485,7 @@ mmrClustVarKModes <- R6::R6Class(
     plot_profiles_impl = function() {
       X <- private$FX_active
       if (is.null(X)) {
-        warning("[mmrClustVarKModes] plot(type='profiles'): no active X available.")
+        warning("[Kmodes] plot(type='profiles'): no active X available.")
         return(invisible(NULL))
       }
 
@@ -499,7 +498,7 @@ mmrClustVarKModes <- R6::R6Class(
       K        <- private$FNbGroupes
 
       if (is.null(clusters) || is.null(centers)) {
-        warning("[mmrClustVarKModes] No clusters or prototypes available.")
+        warning("[Kmodes] No clusters or prototypes available.")
         return(invisible(NULL))
       }
 

@@ -1,28 +1,28 @@
 #' K-means for variable clustering (numeric variables only)
 #'
-#' Internal R6 class implementing a k-means-like algorithm for clustering
+#' R6 class implementing a k-means-like algorithm for clustering
 #' \emph{variables} (columns) when all active variables are numeric.
 #'
-#' This class is not intended to be used directly by end users. They should use
-#' the facade \code{mmrClustVar} instead.
-#'
 #' @docType class
-#' @name mmrClustVarKMeans
-#' @keywords internal
-#' @noRd
-mmrClustVarKMeans <- R6::R6Class(
-  "mmrClustVarKMeans",
-  inherit = mmrClustVarBase,
+#' @name Kmeans
+#' @export
+Kmeans <- R6::R6Class(
+  "Kmeans",
+  inherit = .ClusterBase,
 
   public = list(
-
-    initialize = function(K, scale = TRUE, lambda = 1, ...) {
-      # lambda is ignored for k-means, but kept for signature consistency
+    
+    #' @description
+    #' Create a new Kmeans instance
+    #' @param K Number of cluster
+    #' @param scale A boolean defining whether to scale the data or not
+    #' @param random_state The random seed to use
+    initialize = function(K, scale = TRUE, random_state = NULL) {
       super$initialize(
         K           = K,
         scale       = scale,
-        lambda      = lambda,
-        method_name = "kmeans"
+        method_name = "kmeans",
+        random_state = random_state
       )
     },
 
@@ -45,7 +45,7 @@ mmrClustVarKMeans <- R6::R6Class(
       clusters <- private$FClusters
 
       if (is.null(X) || is.null(clusters)) {
-        stop("[mmrClustVarKMeans] interpret_clusters(): no fitted model or missing state.")
+        stop("[Kmeans] interpret_clusters(): no fitted model or missing state.")
       }
 
       p <- ncol(X)
@@ -54,7 +54,7 @@ mmrClustVarKMeans <- R6::R6Class(
       # type check
       is_num <- vapply(X, is.numeric, logical(1L))
       if (!all(is_num)) {
-        warning("[mmrClustVarKMeans] Some non-numeric variables detected; ",
+        warning("[Kmeans] Some non-numeric variables detected; ",
                 "only numeric variables are used for interpretation.")
       }
 
@@ -181,7 +181,7 @@ mmrClustVarKMeans <- R6::R6Class(
 
       # Ensure all variables are numeric
       if (!all(vapply(X, is.numeric, logical(1L)))) {
-        stop("[mmrClustVarKMeans] All variables must be numeric.")
+        stop("[Kmeans] All variables must be numeric.")
       }
 
       n <- nrow(X)
@@ -189,7 +189,7 @@ mmrClustVarKMeans <- R6::R6Class(
       K <- private$FNbGroupes
 
       if (K > p) {
-        stop("[mmrClustVarKMeans] K cannot exceed the number of variables.")
+        stop("[Kmeans] K cannot exceed the number of variables.")
       }
 
       # Convert to n × p matrix
@@ -350,12 +350,12 @@ mmrClustVarKMeans <- R6::R6Class(
     predict_one_variable = function(x_new, var_name) {
 
       if (!is.numeric(x_new)) {
-        stop("[mmrClustVarKMeans] predict() for k-means requires a numeric variable.")
+        stop("[Kmeans] predict() for k-means requires a numeric variable.")
       }
 
       centers <- private$FCenters
       if (is.null(centers)) {
-        stop("[mmrClustVarKMeans] No prototypes available (was fit() called?).")
+        stop("[Kmeans] No prototypes available (was fit() called?).")
       }
 
       K <- length(centers)
@@ -468,7 +468,7 @@ mmrClustVarKMeans <- R6::R6Class(
     plot_membership_impl = function() {
       X <- private$FX_active
       if (is.null(X)) {
-        stop("[mmrClustVarKMeans] plot(type = 'membership') : no active X available.")
+        stop("[Kmeans] plot(type = 'membership') : no active X available.")
       }
 
       X_mat    <- as.matrix(X)
@@ -501,7 +501,7 @@ mmrClustVarKMeans <- R6::R6Class(
     plot_profiles_impl = function() {
       X <- private$FX_active
       if (is.null(X)) {
-        warning("[mmrClustVarKMeans] plot(type = 'profiles') : no active X available.")
+        warning("[Kmeans] plot(type = 'profiles') : no active X available.")
         return(invisible(NULL))
       }
 
@@ -511,7 +511,7 @@ mmrClustVarKMeans <- R6::R6Class(
       K        <- private$FNbGroupes
 
       if (is.null(clusters)) {
-        warning("[mmrClustVarKMeans] No clusters available.")
+        warning("[Kmeans] No clusters available.")
         return(invisible(NULL))
       }
 

@@ -1,33 +1,36 @@
 #' K-prototypes for variable clustering (mixed variables)
 #'
-#' Internal R6 class implementing a k-prototypes-like algorithm for clustering
+#' R6 class implementing a k-prototypes-like algorithm for clustering
 #' \emph{variables} (columns) when active variables are mixed (numeric +
 #' categorical).
 #'
-#' This class is not intended to be used directly by end users. They should use
-#' the facade \code{mmrClustVar} instead.
-#'
 #' @docType class
-#' @name mmrClustVarKPrototypes
-#' @keywords internal
-#' @noRd
-mmrClustVarKPrototypes <- R6::R6Class(
-  "mmrClustVarKPrototypes",
-  inherit = mmrClustVarBase,
+#' @name Kprototypes
+#' @export
+Kprototypes <- R6::R6Class(
+  "Kprototypes",
+  inherit = .ClusterBase,
 
   public = list(
 
-    initialize = function(K, scale = TRUE, lambda = 1, ...) {
+    #' @description
+    #' Create a new Kprototypes instance
+    #' @param K Number of cluster
+    #' @param scale A boolean defining whether to scale the data or not
+    #' @param lambda Weight for qualitative data
+    #' @param random_state The random seed to use
+    initialize = function(K, scale = TRUE, lambda = 1, random_state = NULL) {
       # lambda > 0: weight for the categorical part
       if (!is.numeric(lambda) || length(lambda) != 1L || lambda <= 0) {
-        stop("[mmrClustVarKPrototypes] lambda must be a numeric > 0.")
+        stop("[Kprototypes] lambda must be a numeric > 0.")
       }
 
       super$initialize(
         K           = K,
         scale       = scale,
         lambda      = lambda,
-        method_name = "kprototypes"
+        method_name = "kprototypes",
+        random_state = random_state
       )
     },
 
@@ -52,7 +55,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
       clusters <- private$FClusters
 
       if (is.null(X) || is.null(clusters)) {
-        stop("[mmrClustVarKPrototypes] interpret_clusters(): no fitted model or missing state.")
+        stop("[Kprototypes] interpret_clusters(): no fitted model or missing state.")
       }
 
       p <- ncol(X)
@@ -240,7 +243,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
       K <- private$FNbGroupes
 
       if (K > p) {
-        stop("[mmrClustVarKPrototypes] K cannot exceed the number of variables.")
+        stop("[Kprototypes] K cannot exceed the number of variables.")
       }
 
       num_idx <- private$FNumCols
@@ -462,14 +465,14 @@ mmrClustVarKPrototypes <- R6::R6Class(
       lambda  <- private$FLambda
 
       if (is.null(centers)) {
-        stop("[mmrClustVarKPrototypes] No prototypes available (did you run fit()?).")
+        stop("[Kprototypes] No prototypes available (did you run fit()?).")
       }
 
       is_num <- is.numeric(x_new)
       is_cat <- is.factor(x_new) || is.character(x_new)
 
       if (!is_num && !is_cat) {
-        stop("[mmrClustVarKPrototypes] New variable must be numeric or categorical.")
+        stop("[Kprototypes] New variable must be numeric or categorical.")
       }
 
       K          <- length(centers)
@@ -658,7 +661,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
     plot_membership_impl = function() {
       X <- private$FX_active
       if (is.null(X)) {
-        stop("[mmrClustVarKPrototypes] plot(type = 'membership'): no active X available.")
+        stop("[Kprototypes] plot(type = 'membership'): no active X available.")
       }
 
       num_idx <- private$FNumCols
@@ -714,7 +717,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
     plot_profiles_impl = function() {
       X <- private$FX_active
       if (is.null(X)) {
-        warning("[mmrClustVarKPrototypes] plot(type = 'profiles'): no active X available.")
+        warning("[Kprototypes] plot(type = 'profiles'): no active X available.")
         return(invisible(NULL))
       }
 
@@ -734,7 +737,7 @@ mmrClustVarKPrototypes <- R6::R6Class(
         any(vapply(centers, function(c_k) !is.null(c_k$cat), logical(1L)))
 
       if (!has_num && !has_cat) {
-        warning("[mmrClustVarKPrototypes] No usable profiles for 'profiles' plot.")
+        warning("[Kprototypes] No usable profiles for 'profiles' plot.")
         return(invisible(NULL))
       }
 

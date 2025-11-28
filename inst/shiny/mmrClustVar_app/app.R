@@ -249,7 +249,7 @@ server <- function(input, output, session) {
     # 4) Create facade object
     lambda_arg <- if (!is.null(input$lambda)) input$lambda else 1
     
-    obj <- mmrClustVar$new(
+    obj <- Interface$new(
       method = input$method,
       K      = input$K,
       scale  = scale_arg,

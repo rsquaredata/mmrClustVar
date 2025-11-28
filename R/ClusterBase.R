@@ -7,9 +7,8 @@
 #' It serves as the parent class for all specialized algorithm classes.
 #'
 #' @docType class
-#' @name mmrClustVarBase
+#' @name ClusterBase
 #' @keywords internal
-#' @noRd
 #'
 #' @section Methods:
 #' \describe{
@@ -54,19 +53,22 @@
 #' }
 NULL
 
-mmrClustVarBase <- R6::R6Class(
-    "mmrClustVarBase",
+.ClusterBase <- R6::R6Class(
+    "ClusterBase",
     
     public = list(
         
         initialize = function(K,
                               scale = TRUE,
                               lambda = 1,
-                              method_name = "base") {
+                              method_name = NULL,
+                              random_state = NULL) {
             
             if (missing(K) || !is.numeric(K) || length(K) != 1L || K < 2) {
-                stop("[mmrClustVarBase] K must be an integer >= 2")
+                stop("[ClusterBase] K must be an integer >= 2")
             }
+            
+            set.seed(random_state)
             
             private$FNbGroupes   <- as.integer(K)
             private$FScale       <- isTRUE(scale)
@@ -119,13 +121,13 @@ mmrClustVarBase <- R6::R6Class(
         predict = function(X_new) {
             
             if (is.null(private$FX_active)) {
-                stop("[mmrClustVarBase] fit() must be called before predict()")
+                stop("[ClusterBase] fit() must be called before predict()")
             }
             
             X_new <- private$check_and_prepare_X(X_new, update_structure = FALSE)
             
             if (nrow(X_new) != nrow(private$FX_active)) {
-                stop("[mmrClustVarBase] X_new must have the same number of rows as the data used in fit().")
+                stop("[ClusterBase] X_new must have the same number of rows as the data used in fit().")
             }
 
             res <- lapply(seq_along(X_new), function(j) {
@@ -179,7 +181,7 @@ mmrClustVarBase <- R6::R6Class(
             type <- match.arg(type)
             
             if (is.null(private$FClusters)) {
-                stop("[mmrClustVarBase] fit() must be called before plot().")
+                stop("[ClusterBase] fit() must be called before plot().")
             }
             
             if (type == "clusters") {
@@ -269,7 +271,7 @@ mmrClustVarBase <- R6::R6Class(
             }
             
             if (ncol(X) == 0L) {
-                stop("[mmrClustVarBase] X must contain at least one column.")
+                stop("[ClusterBase] X must contain at least one column.")
             }
             
             num_idx <- which(vapply(X, is.numeric, logical(1L)))
@@ -311,11 +313,11 @@ mmrClustVarBase <- R6::R6Class(
         # --- abstract hooks for child classes --------------------------------
         
         run_clustering = function(X) {
-            stop("[mmrClustVarBase] run_clustering() must be implemented in a child class.")
+            stop("[ClusterBase] run_clustering() must be implemented in a child class.")
         },
         
         predict_one_variable = function(x_new, var_name) {
-            stop("[mmrClustVarBase] predict_one_variable() must be implemented in a child class.")
+            stop("[ClusterBase] predict_one_variable() must be implemented in a child class.")
         },
         
         summary_membership_impl = function() {
@@ -323,11 +325,11 @@ mmrClustVarBase <- R6::R6Class(
         },
         
         plot_membership_impl = function() {
-            stop("[mmrClustVarBase] plot(type = 'membership') not implemented for this class.")
+            stop("[ClusterBase] plot(type = 'membership') not implemented for this class.")
         },
         
         plot_profiles_impl = function() {
-            warning("[mmrClustVarBase] plot(type = 'profiles') not implemented; no plot produced.")
+            warning("[ClusterBase] plot(type = 'profiles') not implemented; no plot produced.")
         }
     )
 )

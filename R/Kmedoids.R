@@ -1,35 +1,37 @@
 #' K-medoids for variable clustering (mixed variables)
 #'
-#' Internal R6 class implementing a k-medoids-like algorithm for clustering
+#' R6 class implementing a k-medoids-like algorithm for clustering
 #' \emph{variables} (columns) based on a dissimilarity matrix:
 #'   - numeric vs numeric: 1 - r^2(x_j, x_l)
 #'   - categorical vs categorical: simple matching dissimilarity
 #'   - mixed (numeric vs categorical): fixed dissimilarity = 1
 #'
-#' This class is not intended to be used directly by end users. They should use
-#' the facade \code{mmrClustVar} instead.
-#'
 #' @docType class
-#' @name mmrClustVarKMedoids
-#' @keywords internal
-#' @noRd
-mmrClustVarKMedoids <- R6::R6Class(
-  "mmrClustVarKMedoids",
-  inherit = mmrClustVarBase,
+#' @name Kmedoids
+#' @export
+Kmedoids <- R6::R6Class(
+  "Kmedoids",
+  inherit = .ClusterBase,
 
   public = list(
-
-    initialize = function(K, scale = TRUE, lambda = 1, ...) {
+    
+    #' @description
+    #' Create a new Kmedoids instance
+    #' @param K Number of cluster
+    #' @param lambda Weight for qualitative data
+    #' @param random_state The random seed to use
+    initialize = function(K, lambda = 1, random_state = NULL) {
       # lambda kept for signature consistency (can be used later to weight cat part)
       if (!is.numeric(lambda) || length(lambda) != 1L || lambda <= 0) {
-        stop("[mmrClustVarKMedoids] lambda must be a numeric > 0.")
+        stop("[Kmedoids] lambda must be a numeric > 0.")
       }
 
       super$initialize(
         K           = K,
         scale       = scale,
         lambda      = lambda,
-        method_name = "kmedoids"
+        method_name = "kmedoids",
+        random_state = random_state
       )
     },
 
@@ -50,7 +52,7 @@ mmrClustVarKMedoids <- R6::R6Class(
       centers  <- private$FCenters
 
       if (is.null(X) || is.null(clusters) || is.null(centers)) {
-        stop("[mmrClustVarKMedoids] interpret_clusters(): no fitted model or missing state.")
+        stop("[Kmedoids] interpret_clusters(): no fitted model or missing state.")
       }
 
       p <- ncol(X)
@@ -132,7 +134,7 @@ mmrClustVarKMedoids <- R6::R6Class(
       # already checked by check_and_prepare_X() and possibly scaled.
 
       if (!requireNamespace("cluster", quietly = TRUE)) {
-        stop("[mmrClustVarKMedoids] The 'cluster' package is required for k-medoids.")
+        stop("[Kmedoids] The 'cluster' package is required for k-medoids.")
       }
 
       n <- nrow(X)
@@ -140,7 +142,7 @@ mmrClustVarKMedoids <- R6::R6Class(
       K <- private$FNbGroupes
 
       if (K > p) {
-        stop("[mmrClustVarKMedoids] K cannot exceed the number of variables.")
+        stop("[Kmedoids] K cannot exceed the number of variables.")
       }
 
       num_idx <- private$FNumCols
@@ -250,14 +252,14 @@ mmrClustVarKMedoids <- R6::R6Class(
       cat_idx <- private$FCatCols
 
       if (is.null(X_ref) || is.null(centers)) {
-        stop("[mmrClustVarKMedoids] No prototypes available (did you run fit()?).")
+        stop("[Kmedoids] No prototypes available (did you run fit()?).")
       }
 
       is_num <- is.numeric(x_new)
       is_cat <- is.factor(x_new) || is.character(x_new)
 
       if (!is_num && !is_cat) {
-        stop("[mmrClustVarKMedoids] New variable must be numeric or categorical.")
+        stop("[Kmedoids] New variable must be numeric or categorical.")
       }
 
       # Préparer x_new selon son type
@@ -452,7 +454,7 @@ mmrClustVarKMedoids <- R6::R6Class(
     plot_membership_impl = function() {
       X <- private$FX_active
       if (is.null(X)) {
-        stop("[mmrClustVarKMedoids] plot(type = 'membership'): no active X available.")
+        stop("[Kmedoids] plot(type = 'membership'): no active X available.")
       }
 
       clusters <- private$FClusters
@@ -460,7 +462,7 @@ mmrClustVarKMedoids <- R6::R6Class(
       p        <- ncol(X)
 
       if (is.null(clusters) || is.null(centers)) {
-        stop("[mmrClustVarKMedoids] No clustering result available.")
+        stop("[Kmedoids] No clustering result available.")
       }
 
       if (is.null(private$make_var_var_distance_fun)) {

@@ -1,10 +1,10 @@
-#' Facade class for variable clustering (mmrClustVar)
+#' Interface class for variable clustering (Interface)
 #'
 #' High-level R6 interface to multiple variable clustering algorithms
 #' (k-means, k-modes, k-prototypes, k-medoids) implemented in dedicated
-#' internal engines inheriting from \code{mmrClustVarBase}.
+#' internal engines inheriting from \code{ClusterBase}.
 #'
-#' Users should typically interact only with this facade:
+#' Users can interact with this interface:
 #' \enumerate{
 #'   \item choose a method (or \code{"auto"}),
 #'   \item call \code{$fit(X)} on a data.frame of active variables,
@@ -12,15 +12,15 @@
 #' }
 #'
 #' @docType class
-#' @name mmrClustVar
+#' @name Interface
 #' @export
-mmrClustVar <- R6::R6Class(
-  "mmrClustVar",
+Interface <- R6::R6Class(
+  "Interface",
 
   public = list(
 
     #' @description
-    #' Create a new mmrClustVar facade object.
+    #' Create a new Interface object.
     #'
     #' @param method Clustering method: one of \code{"auto"}, \code{"kmeans"},
     #'   \code{"kmodes"}, \code{"kprototypes"}, \code{"kmedoids"}.
@@ -36,13 +36,13 @@ mmrClustVar <- R6::R6Class(
       method <- match.arg(method)
 
       if (!is.numeric(K) || length(K) != 1L || K < 2) {
-        stop("[mmrClustVar] K must be a numeric >= 2.")
+        stop("[Interface] K must be a numeric >= 2.")
       }
       if (!is.logical(scale) || length(scale) != 1L) {
-        stop("[mmrClustVar] 'scale' must be TRUE or FALSE.")
+        stop("[Interface] 'scale' must be TRUE or FALSE.")
       }
       if (!is.numeric(lambda) || length(lambda) != 1L || lambda <= 0) {
-        stop("[mmrClustVar] 'lambda' must be a numeric > 0.")
+        stop("[Interface] 'lambda' must be a numeric > 0.")
       }
 
       private$FRequestedMethod <- method
@@ -65,13 +65,13 @@ mmrClustVar <- R6::R6Class(
       }
 
       if (ncol(X) < 2L) {
-        stop("[mmrClustVar] At least 2 active variables are required.")
+        stop("[Interface] At least 2 active variables are required.")
       }
 
       method_eff <- private$decide_effective_method(X)
       engine     <- private$create_engine(method_eff)
 
-      # Fit underlying engine (inherits mmrClustVarBase)
+      # Fit underlying engine (inherits ClusterBase)
       engine$fit(X)
 
       private$FEngine          <- engine
@@ -88,15 +88,16 @@ mmrClustVar <- R6::R6Class(
     #' @return A data.frame with cluster assignment and membership indicators.
     predict = function(X_new) {
       if (is.null(private$FEngine)) {
-        stop("[mmrClustVar] No fitted model: call fit() first.")
+        stop("[Interface] No fitted model: call fit() first.")
       }
       private$FEngine$predict(X_new)
     },
 
     #' @description
     #' Print a concise summary of the fitted model.
+    #' @param ... Regular print params
     print = function(...) {
-      cat("Classe 'mmrClustVar' (facade)\n")
+      cat("Classe 'Interface'\n")
       cat("  Requested method :", private$FRequestedMethod, "\n")
       cat("  Effective method :", private$FEffectiveMethod, "\n")
       cat("  K (clusters)     :", private$FK, "\n")
@@ -115,8 +116,9 @@ mmrClustVar <- R6::R6Class(
 
     #' @description
     #' Detailed summary: facade info + engine-level summary.
+    #' @param ... Regular summary params
     summary = function(...) {
-      cat("=== mmrClustVar summary (facade) ===\n")
+      cat("=== Interface summary ===\n")
       cat("Requested method :", private$FRequestedMethod, "\n")
       cat("Effective method :", private$FEffectiveMethod, "\n")
       cat("K (clusters)     :", private$FK, "\n")
@@ -143,17 +145,18 @@ mmrClustVar <- R6::R6Class(
     #'     \item \code{"membership"}     : membership indicators per variable,
     #'     \item \code{"profiles"}       : profiles / heatmaps on individuals.
     #'   }
+    #' @param ... Regular plot params
     plot = function(type = c("inertia", "clusters", "membership", "profiles"), ...) {
       type <- match.arg(type)
 
       if (type == "inertia") {
         if (is.null(private$FInertiaPath)) {
-          stop("[mmrClustVar] No inertia path available. Call compute_inertia_path() first.")
+          stop("[Interface] No inertia path available. Call compute_inertia_path() first.")
         }
 
         df <- private$FInertiaPath
         if (!all(c("K", "inertia") %in% names(df))) {
-          stop("[mmrClustVar] Inertia path has an invalid structure.")
+          stop("[Interface] Inertia path has an invalid structure.")
         }
 
         graphics::plot(
@@ -168,7 +171,7 @@ mmrClustVar <- R6::R6Class(
       }
 
       if (is.null(private$FEngine)) {
-        stop("[mmrClustVar] No fitted model: call fit() first.")
+        stop("[Interface] No fitted model: call fit() first.")
       }
 
       private$FEngine$plot(type = type, ...)
@@ -185,20 +188,20 @@ mmrClustVar <- R6::R6Class(
     compute_inertia_path = function(K_seq, X = NULL) {
 
       if (missing(K_seq) || length(K_seq) == 0L) {
-        stop("[mmrClustVar] K_seq must be a non-empty vector of integers.")
+        stop("[Interface] K_seq must be a non-empty vector of integers.")
       }
       K_seq <- unique(as.integer(K_seq))
       K_seq <- sort(K_seq)
       K_seq <- K_seq[K_seq >= 2L]
 
       if (length(K_seq) == 0L) {
-        stop("[mmrClustVar] K_seq must contain values >= 2.")
+        stop("[Interface] K_seq must contain values >= 2.")
       }
 
       # Active data
       if (is.null(X)) {
         if (is.null(private$FEngine)) {
-          stop("[mmrClustVar] No fitted model and no X provided.")
+          stop("[Interface] No fitted model and no X provided.")
         }
         X <- private$FEngine$get_X_descr()$X_active
       }
@@ -210,7 +213,7 @@ mmrClustVar <- R6::R6Class(
       p <- ncol(X)
       K_seq <- K_seq[K_seq <= p]
       if (length(K_seq) == 0L) {
-        stop("[mmrClustVar] All K in K_seq exceed the number of variables.")
+        stop("[Interface] All K in K_seq exceed the number of variables.")
       }
 
       method_eff <- private$decide_effective_method(X)
@@ -247,7 +250,7 @@ mmrClustVar <- R6::R6Class(
     #' @param style Either \code{"compact"} or \code{"detailed"}.
     interpret_clusters = function(style = c("compact", "detailed")) {
       if (is.null(private$FEngine)) {
-        stop("[mmrClustVar] No fitted model: call fit() first.")
+        stop("[Interface] No fitted model: call fit() first.")
       }
       private$FEngine$interpret_clusters(style = style)
     },
@@ -295,7 +298,7 @@ mmrClustVar <- R6::R6Class(
     FScale           = TRUE,
     FLambda          = 1,
 
-    # underlying fitted engine (mmrClustVarBase subclass)
+    # underlying fitted engine (ClusterBase subclass)
     FEngine          = NULL,
 
     # effective method used (after "auto" decision)
@@ -324,10 +327,10 @@ mmrClustVar <- R6::R6Class(
       if (method_req != "auto") {
         # basic consistency checks
         if (method_req == "kmeans" && !all(is_num)) {
-          stop("[mmrClustVar] k-means requires all active variables to be numeric.")
+          stop("[Interface] k-means requires all active variables to be numeric.")
         }
         if (method_req == "kmodes" && !all(is_cat)) {
-          stop("[mmrClustVar] k-modes requires all active variables to be categorical.")
+          stop("[Interface] k-modes requires all active variables to be categorical.")
         }
         # k-prototypes / k-medoids can handle mixed or homogeneous types
         return(method_req)
@@ -352,7 +355,7 @@ mmrClustVar <- R6::R6Class(
       K_val <- if (is.null(K_override)) private$FK else as.integer(K_override)
 
       if (method_effective == "kmeans") {
-        return(mmrClustVarKMeans$new(
+        return(Kmeans$new(
           K      = K_val,
           scale  = private$FScale,
           lambda = private$FLambda
@@ -360,7 +363,7 @@ mmrClustVar <- R6::R6Class(
       }
 
       if (method_effective == "kmodes") {
-        return(mmrClustVarKModes$new(
+        return(Kmodes$new(
           K      = K_val,
           scale  = private$FScale,
           lambda = private$FLambda
@@ -368,7 +371,7 @@ mmrClustVar <- R6::R6Class(
       }
 
       if (method_effective == "kprototypes") {
-        return(mmrClustVarKPrototypes$new(
+        return(Kprototypes$new(
           K      = K_val,
           scale  = private$FScale,
           lambda = private$FLambda
@@ -376,14 +379,14 @@ mmrClustVar <- R6::R6Class(
       }
 
       if (method_effective == "kmedoids") {
-        return(mmrClustVarKMedoids$new(
+        return(Kmedoids$new(
           K      = K_val,
           scale  = private$FScale,
           lambda = private$FLambda
         ))
       }
 
-      stop("[mmrClustVar] Unsupported effective method: ", method_effective)
+      stop("[Interface] Unsupported effective method: ", method_effective)
     }
   )
 )
