@@ -64,8 +64,7 @@ library(mmrClustVar)
 ```r
 df <- iris[,1:4]
 
-obj <- mmrClustVar$new(
-  method="kmeans",
+obj <- Kmeans$new(
   K=3,
   scale=TRUE
 )
