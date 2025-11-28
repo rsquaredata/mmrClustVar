@@ -28,15 +28,14 @@ mmrClustVar/
 ├── DESCRIPTION
 ├── NAMESPACE
 ├── R/
-│   ├── mmrClustVar.R
-│   ├── mmrClustVarBase.R
-│   ├── mmrClustVarKMeans.R
-│   ├── mmrClustVarKModes.R
-│   ├── mmrClustVarKPrototypes.R
-│   ├── mmrClustVarKMedoids.R
+│   ├── Interface.R
+│   ├── ClusterBase.R
+│   ├── Kmeans.R
+│   ├── Kmodes.R
+│   ├── Kprototypes.R
+│   ├── Kmedoids.R
 │   ├── run_app.R
-│   ├── utils_inertia.R
-│   └── datasets_documentation.R
+│   └── metal_universe.R
 ├── inst/shiny/mmrClustVar_app/
 ├── data/
 ├── data-raw/prepare_datasets.R
