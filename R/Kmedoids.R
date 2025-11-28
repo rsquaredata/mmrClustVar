@@ -228,6 +228,8 @@ Kmedoids <- R6::R6Class(
 
       # pam$objective[1] = sum des distances aux médoïdes
       inertia <- as.numeric(pam_fit$objective[1])
+      
+      names(clusters) <- names(X)
 
       list(
         clusters  = clusters,

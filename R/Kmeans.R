@@ -335,6 +335,8 @@ Kmeans <- R6::R6Class(
         xj <- X_mat[, j]
         inertia <- inertia + (1 - private$r2_corr(xj, zk))
       }
+      
+      names(clusters) <- names(X)
 
       list(
         clusters  = clusters,

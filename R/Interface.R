@@ -357,16 +357,13 @@ Interface <- R6::R6Class(
       if (method_effective == "kmeans") {
         return(Kmeans$new(
           K      = K_val,
-          scale  = private$FScale,
-          lambda = private$FLambda
+          scale  = private$FScale
         ))
       }
 
       if (method_effective == "kmodes") {
         return(Kmodes$new(
-          K      = K_val,
-          scale  = private$FScale,
-          lambda = private$FLambda
+          K      = K_val
         ))
       }
 
@@ -381,7 +378,6 @@ Interface <- R6::R6Class(
       if (method_effective == "kmedoids") {
         return(Kmedoids$new(
           K      = K_val,
-          scale  = private$FScale,
           lambda = private$FLambda
         ))
       }

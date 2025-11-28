@@ -308,6 +308,8 @@ Kmodes <- R6::R6Class(
         xj <- X_mat[, j]
         inertia <- inertia + private$simple_matching(xj, mk)
       }
+      
+      names(clusters) <- names(X)
 
       list(
         clusters  = clusters,

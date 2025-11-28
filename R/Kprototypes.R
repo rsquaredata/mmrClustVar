@@ -446,6 +446,8 @@ Kprototypes <- R6::R6Class(
       }
 
       inertia <- compute_inertia(clusters)
+      
+      names(clusters) <- names(X)
 
       list(
         clusters  = clusters,
