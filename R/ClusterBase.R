@@ -7,9 +7,8 @@
 #' It serves as the parent class for all specialized algorithm classes.
 #'
 #' @docType class
-#' @name mmrClustVarBase
+#' @name ClusterBase
 #' @keywords internal
-#' @noRd
 #'
 #' @section Methods:
 #' \describe{
@@ -27,7 +26,8 @@
 #'     Provides a short printed summary of the object.
 #'   }
 #'   \item{\code{$summary()}}{
-#'     Detailed summary of the results.
+#'     Detailed summary of the results (including membership indicators
+#'     defined in child classes).
 #'   }
 #'   \item{\code{$plot(type)}}{
 #'     Visualizations associated with the model.
@@ -36,7 +36,7 @@
 #'     Returns the cluster assignment of variables.
 #'   }
 #'   \item{\code{$get_centers()}}{
-#'     Returns the cluster prototypes.
+#'     Returns the cluster prototypes / centers / medoids.
 #'   }
 #'   \item{\code{$get_method()}}{
 #'     Returns the name of the clustering method used.
@@ -44,25 +44,31 @@
 #'   \item{\code{$get_K()}}{
 #'     Returns the number of clusters.
 #'   }
+#'   \item{\code{$get_inertia()}}{
+#'     Returns the within-cluster inertia of the fitted model.
+#'   }
 #'   \item{\code{$get_convergence()}}{
 #'     Returns the convergence indicator of the algorithm.
 #'   }
 #' }
 NULL
 
-mmrClustVarBase <- R6::R6Class(
-    "mmrClustVarBase",
+.ClusterBase <- R6::R6Class(
+    "ClusterBase",
     
     public = list(
         
         initialize = function(K,
                               scale = TRUE,
                               lambda = 1,
-                              method_name = "base") {
+                              method_name = NULL,
+                              random_state = NULL) {
             
             if (missing(K) || !is.numeric(K) || length(K) != 1L || K < 2) {
-                stop("[mmrClustVarBase] K must be an integer >= 2")
+                stop("[ClusterBase] K must be an integer >= 2")
             }
+            
+            set.seed(random_state)
             
             private$FNbGroupes   <- as.integer(K)
             private$FScale       <- isTRUE(scale)
@@ -70,7 +76,6 @@ mmrClustVarBase <- R6::R6Class(
             private$FMethod      <- method_name
             private$FConvergence <- FALSE
             private$FInertia     <- NA_real_
-            private$FAlgorithme  <- method_name
         },
         
         fit = function(X) {
@@ -116,11 +121,15 @@ mmrClustVarBase <- R6::R6Class(
         predict = function(X_new) {
             
             if (is.null(private$FX_active)) {
-                stop("[mmrClustVarBase] fit() must be called before predict()")
+                stop("[ClusterBase] fit() must be called before predict()")
             }
             
             X_new <- private$check_and_prepare_X(X_new, update_structure = FALSE)
             
+            if (nrow(X_new) != nrow(private$FX_active)) {
+                stop("[ClusterBase] X_new must have the same number of rows as the data used in fit().")
+            }
+
             res <- lapply(seq_along(X_new), function(j) {
                 var_name <- colnames(X_new)[j]
                 private$predict_one_variable(X_new[[j]], var_name)
@@ -162,7 +171,7 @@ mmrClustVarBase <- R6::R6Class(
             cat("\n")
             
             # Hook for child classes: specific membership metrics
-            private$summary_membership()
+            private$summary_membership_impl()
             
             invisible(NULL)
         },
@@ -172,7 +181,7 @@ mmrClustVarBase <- R6::R6Class(
             type <- match.arg(type)
             
             if (is.null(private$FClusters)) {
-                stop("[mmrClustVarBase] fit() must be called before plot().")
+                stop("[ClusterBase] fit() must be called before plot().")
             }
             
             if (type == "clusters") {
@@ -194,11 +203,11 @@ mmrClustVarBase <- R6::R6Class(
                 
             } else if (type == "membership") {
                 
-                private$plot_membership()
+                private$plot_membership_impl()
                 
             } else if (type == "profiles") {
                 
-                private$plot_profiles()
+                private$plot_profiles_impl()
             }
             
             invisible(NULL)
@@ -209,11 +218,20 @@ mmrClustVarBase <- R6::R6Class(
         get_method      = function() private$FMethod,
         get_K           = function() private$FNbGroupes,
         get_inertia     = function() private$FInertia,
-        get_convergence = function() private$FConvergence
+        get_convergence = function() private$FConvergence,
+
+        get_X_descr = function() {
+            list(
+                X_active = private$FX_active,
+                num_cols = private$FNumCols,
+                cat_cols = private$FCatCols
+            )
+        }
     ),
     
     private = list(
         
+        # --- global configuration / state ---
         FMethod      = NULL,
         FNbGroupes   = NULL,
         FScale       = NULL,
@@ -224,9 +242,27 @@ mmrClustVarBase <- R6::R6Class(
         FCenters     = NULL,
         FInertia     = NULL,
         FConvergence = NULL,
-        FAlgorithme  = NULL,
         FNumCols     = NULL,
         FCatCols     = NULL,
+        
+        # --- shared low-level helpers (factorised across engines) ------------
+        
+        # squared correlation r^2 between two numeric vectors
+        r2_corr = function(x, z) {
+            r <- suppressWarnings(stats::cor(x, z, use = "pairwise.complete.obs"))
+            if (is.na(r)) r <- 0
+            r^2
+        },
+        
+        # simple matching dissimilarity = proportion of mismatches
+        simple_matching = function(x, m) {
+            mismatch <- (x != m)
+            d <- mean(mismatch, na.rm = TRUE)
+            if (is.na(d)) d <- 1
+            d
+        },
+        
+        # --- data preparation -------------------------------------------------
         
         check_and_prepare_X = function(X, update_structure = TRUE) {
             
@@ -235,7 +271,7 @@ mmrClustVarBase <- R6::R6Class(
             }
             
             if (ncol(X) == 0L) {
-                stop("[mmrClustVarBase] X must contain at least one column.")
+                stop("[ClusterBase] X must contain at least one column.")
             }
             
             num_idx <- which(vapply(X, is.numeric, logical(1L)))
@@ -250,7 +286,7 @@ mmrClustVarBase <- R6::R6Class(
                 private$FCatCols <- cat_idx
             }
             
-            # Convert character → factor
+            # Convert character → factor for categorical variables
             for (j in cat_idx) {
                 if (!is.factor(X[[j]])) {
                     X[[j]] <- factor(X[[j]])
@@ -274,24 +310,26 @@ mmrClustVarBase <- R6::R6Class(
             X
         },
         
+        # --- abstract hooks for child classes --------------------------------
+        
         run_clustering = function(X) {
-            stop("[mmrClustVarBase] run_clustering() must be implemented in a child class.")
+            stop("[ClusterBase] run_clustering() must be implemented in a child class.")
         },
         
         predict_one_variable = function(x_new, var_name) {
-            stop("[mmrClustVarBase] predict_one_variable() must be implemented in a child class.")
+            stop("[ClusterBase] predict_one_variable() must be implemented in a child class.")
         },
         
-        summary_membership = function() {
+        summary_membership_impl = function() {
             cat("(No membership indicators defined for this class.)\n")
         },
         
-        plot_membership = function() {
-            stop("[mmrClustVarBase] plot(type = 'membership') not implemented for this class.")
+        plot_membership_impl = function() {
+            stop("[ClusterBase] plot(type = 'membership') not implemented for this class.")
         },
         
-        plot_profiles = function() {
-            warning("[mmrClustVarBase] plot(type = 'profiles') not implemented; no plot produced.")
+        plot_profiles_impl = function() {
+            warning("[ClusterBase] plot(type = 'profiles') not implemented; no plot produced.")
         }
     )
 )
