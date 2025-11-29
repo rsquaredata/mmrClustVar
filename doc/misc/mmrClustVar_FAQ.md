@@ -95,9 +95,9 @@ Donc, utiliser l'ACP locale comme prototype est :
 - cohérent avec ClustOfVar,
 - interprétable,
 - efficace en pratique.
-</details>
 
 **variance** : mesure à quel point les valeurs d’une variable sont dispersées autour de leur moyenne → $Var(X) = \frac{1}{n} \sum_{i=1}^n (x_i - \bar{x}^2)$ où $x_i$ = valeurs individuelles, $\bar{x}$ = moyenne, $(x_i - \bar{x}^2$ = écart à la moyenne.
+</details>
 
 ---
 
@@ -217,10 +217,9 @@ Les stratégies pertinentes pour le choix du nombre de clusters K en clustering 
 - **approche subjective : lisibilité + utilité** : le meilleur K est aussi celui qui a du sens pour l'analyse.
 
 <sub>**Modèle probabiliste** : dans un clustering de variables, c'est un modèle qui dit que chaque variable est générée par un *mélange de distributions* correspondant aux clusters. Exemples : mélange de gaussiennes, mixture multinomiale, modèle latent pour catégories.  
-`mmrClustVar` n'utilise pas de modèle probabiliste mais des méthodes algorithmiques (k-means-mile).
-
+`mmrClustVar` n'utilise pas de modèle probabiliste mais des méthodes algorithmiques (k-means-mile).  
 **Modèle latent** : modèle où les clusters ne sont pas directement observés, ils sont des *variables cachées* qui génèrent les données.  
-Exemples : LCA (Latent Class Analysis), mixtures en EM, modèles factoriels avec classes.<su</sub>
+Exemples : LCA (Latent Class Analysis), mixtures en EM, modèles factoriels avec classes.</sub>
 
 <details>
   <summary></summary>
