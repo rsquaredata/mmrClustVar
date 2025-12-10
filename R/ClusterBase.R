@@ -97,9 +97,9 @@ NULL
             }
             
             if (!all(ok)) {
-                X <- X[ok, , drop = FALSE]
+                X <- X[ok, , drop = FALSE]   # keep only the “ok” columns
             }
-            
+
             # 3) Optional standardization of numeric variables
             if (private$FScale) {
                 X <- private$scale_active_variables(X)
