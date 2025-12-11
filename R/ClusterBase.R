@@ -53,6 +53,50 @@
 #' }
 NULL
 
+# =====================================================================
+# InertiaObject : unified inertia container for all clustering engines
+# =====================================================================
+
+InertiaObject <- R6::R6Class(
+  "InertiaObject",
+
+  public = list(
+    total = NA_real_,
+    per_cluster = NULL,
+
+    initialize = function(total, per_cluster = NULL) {
+      self$total       <- total
+      self$per_cluster <- per_cluster
+    },
+
+    summary = function() {
+      cat("=== Inertia Summary ===\n")
+      cat("Total inertia:", self$total, "\n\n")
+
+      if (!is.null(self$per_cluster)) {
+        cat("Inertia per cluster:\n")
+        print(self$per_cluster)
+      }
+    },
+
+    plot = function(...) {
+      if (is.null(self$per_cluster)) {
+        barplot(self$total,
+                main = "Total inertia",
+                ylab = "Inertia")
+      } else {
+        barplot(self$per_cluster,
+                main = "Inertia per cluster",
+                ylab = "Inertia")
+      }
+    }
+  )
+)
+
+# =====================================================================
+# ClusterBase : parent abstract class for variable clustering engines
+# ====================================================================
+
 .ClusterBase <- R6::R6Class(
     "ClusterBase",
     
@@ -163,6 +207,18 @@ NULL
             cat("K           :", private$FNbGroupes, "\n")
             cat("Convergence :", private$FConvergence, "\n")
             cat("Inertia     :", private$FInertia, "\n\n")
+
+            cat("Definition of inertia:\n")
+            cat("  The within-cluster inertia is the total dissimilarity between each active\n")
+            cat("  variable and the prototype of its assigned cluster.\n")
+            cat("  More formally:\n")
+            cat("      inertia = sum_{clusters c} sum_{variables j in c} d(j, prototype_c)\n")
+            cat("  where d(j, prototype_c) is the method-specific dissimilarity:\n")
+            cat("    - k-means: squared Euclidean distance to the cluster mean\n")
+            cat("    - k-modes: simple matching dissimilarity to the cluster mode\n")
+            cat("    - k-prototypes: numeric SSE + lambda-weighted categorical mismatches\n")
+            cat("    - k-medoids: user-defined dissimilarity (1 - r^2, matching, or 1 for mixed)\n")
+            cat("  A lower inertia indicates tighter and more coherent clusters.\n\n")
             
             clusters   <- private$FClusters
             tab_sizes  <- table(clusters)
