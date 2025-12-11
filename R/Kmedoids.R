@@ -17,20 +17,22 @@ Kmedoids <- R6::R6Class(
     
     #' @description
     #' Create a new Kmedoids instance
-    #' @param K Number of cluster
+    #' @param K Number of clusters
     #' @param lambda Weight for qualitative data
+    #' @param scale Logical, whether to scale numeric variables
     #' @param random_state The random seed to use
-    initialize = function(K, lambda = 1, random_state = NULL) {
+    initialize = function(K, lambda = 1, scale = TRUE, random_state = NULL) {  # FIX: add scale arg
       # lambda kept for signature consistency (can be used later to weight cat part)
       if (!is.numeric(lambda) || length(lambda) != 1L || lambda <= 0) {
         stop("[Kmedoids] lambda must be a numeric > 0.")
       }
 
+      # FIX: pass a logical scale, not the base::scale() function
       super$initialize(
-        K           = K,
-        scale       = scale,
-        lambda      = lambda,
-        method_name = "kmedoids",
+        K            = K,
+        scale        = scale,
+        lambda       = lambda,
+        method_name  = "kmedoids",
         random_state = random_state
       )
     },
@@ -58,8 +60,11 @@ Kmedoids <- R6::R6Class(
       p <- ncol(X)
       K <- private$FNbGroupes
 
-      # helper: distance entre deux variables (j, l)
-      compute_dist_vars <- private$make_var_var_distance_fun(X)
+      # get distance function between variables
+      if (is.null(private$make_var_var_distance_fun)) {
+        private$make_var_var_distance_fun <- private$build_var_var_distance_fun(X)  # FIX: use builder
+      }
+      compute_dist_vars <- private$make_var_var_distance_fun
 
       var_names <- colnames(X)
 
@@ -83,7 +88,7 @@ Kmedoids <- R6::R6Class(
           numeric(1L)
         )
 
-        # stats de distance à la médoïde
+        # distance stats to medoid
         d_mean <- mean(d_k, na.rm = TRUE)
         d_min  <- min(d_k, na.rm = TRUE)
         d_max  <- max(d_k, na.rm = TRUE)
@@ -94,7 +99,7 @@ Kmedoids <- R6::R6Class(
         cat(sprintf("  - Min : %.3f\n", d_min))
         cat(sprintf("  - Max : %.3f\n", d_max))
 
-        # top variables les plus proches de la médoïde
+        # top most central vars
         o_local <- order(d_k, decreasing = FALSE)
         top_idx <- vars_k[o_local]
         if (length(top_idx) > 3L) {
@@ -137,7 +142,7 @@ Kmedoids <- R6::R6Class(
         stop("[Kmedoids] The 'cluster' package is required for k-medoids.")
       }
 
-      n <- nrow(X)
+      X <- as.data.frame(X)
       p <- ncol(X)
       K <- private$FNbGroupes
 
@@ -145,12 +150,52 @@ Kmedoids <- R6::R6Class(
         stop("[Kmedoids] K cannot exceed the number of variables.")
       }
 
+      # build and store distance function between variables
+      private$make_var_var_distance_fun <- private$build_var_var_distance_fun(X)  # FIX
+      compute_dist_vars <- private$make_var_var_distance_fun
+
+      # --- Dissimilarity matrix between variables -------------------------
+      D <- matrix(0, nrow = p, ncol = p)
+      colnames(D) <- rownames(D) <- colnames(X)
+
+      for (j in seq_len(p)) {
+        for (l in seq_len(j)) {
+          d_jl <- compute_dist_vars(j, l)
+          if (is.na(d_jl)) d_jl <- 1  # safety
+          D[j, l] <- d_jl
+          D[l, j] <- d_jl
+        }
+      }
+
+      # --- k-medoids (PAM) on dissimilarity matrix ------------------------
+      pam_fit <- cluster::pam(D, k = K, diss = TRUE)
+
+      clusters   <- as.integer(pam_fit$clustering)   # length = p
+      medoid_pos <- pam_fit$medoids                  # positions (1..p)
+      medoid_idx <- as.integer(medoid_pos)           # variable indices
+
+      # pam$objective[1] = sum of distances to medoids
+      inertia <- as.numeric(pam_fit$objective[1L])
+
+      names(clusters) <- colnames(X)
+
+      list(
+        clusters  = clusters,
+        centers   = medoid_idx,  # medoid indices
+        inertia   = inertia,
+        converged = TRUE
+      )
+    },
+
+    # builder for distance between variables (j, l)
+    # returns a function(j, l) -> dissimilarity
+    build_var_var_distance_fun = function(X_internal) {  # FIX: new helper
       num_idx <- private$FNumCols
       cat_idx <- private$FCatCols
 
       # numeric matrix (possibly empty)
       X_num <- if (length(num_idx) > 0L) {
-        as.matrix(X[, num_idx, drop = FALSE])
+        as.matrix(X_internal[, num_idx, drop = FALSE])
       } else {
         NULL
       }
@@ -158,15 +203,14 @@ Kmedoids <- R6::R6Class(
       # categorical matrix (possibly empty)
       X_cat <- if (length(cat_idx) > 0L) {
         as.matrix(as.data.frame(
-          lapply(X[, cat_idx, drop = FALSE], as.character),
+          lapply(X_internal[, cat_idx, drop = FALSE], as.character),
           stringsAsFactors = FALSE
         ))
       } else {
         NULL
       }
 
-      # --- helper: distance entre deux variables j et l (indices 1..p) ----
-      compute_dist_vars <- function(j, l) {
+      function(j, l) {
         if (j == l) return(0)
 
         j_is_num <- j %in% num_idx
@@ -197,56 +241,17 @@ Kmedoids <- R6::R6Class(
           return(d)
         }
 
-        # Mixed types (numeric vs categorical) → dissimilarité maximale 1
+        # mixed types → maximal dissimilarity
         return(1)
       }
-
-      # On stocke la fonction dans l'objet pour réutilisation (summary, interpret)
-      private$make_var_var_distance_fun <- function(X_internal) {
-        # capture environment: num_idx, cat_idx, X_num, X_cat, private$r2_corr, private$simple_matching
-        function(j, l) compute_dist_vars(j, l)
-      }
-
-      # --- Construction de la matrice de dissimilarité entre variables ----
-      D <- matrix(0, nrow = p, ncol = p)
-      colnames(D) <- rownames(D) <- colnames(X)
-
-      for (j in seq_len(p)) {
-        for (l in seq_len(j)) {
-          d_jl      <- compute_dist_vars(j, l)
-          D[j, l]   <- d_jl
-          D[l, j]   <- d_jl
-        }
-      }
-
-      # --- k-medoids (PAM) sur la matrice de dissimilarité ------------------
-      pam_fit <- cluster::pam(D, k = K, diss = TRUE)
-
-      clusters    <- as.integer(pam_fit$clustering)   # longueur = p
-      medoid_pos  <- pam_fit$medoids                  # positions (1..p)
-      medoid_idx  <- as.integer(medoid_pos)           # indices de variables
-
-      # pam$objective[1] = sum des distances aux médoïdes
-      inertia <- as.numeric(pam_fit$objective[1])
-      
-      names(clusters) <- names(X)
-
-      list(
-        clusters  = clusters,
-        centers   = medoid_idx,  # indices des médoïdes
-        inertia   = inertia,
-        converged = TRUE
-      )
     },
 
-    # petit slot pour exposer la fonction distance (définie dans run_clustering)
+    # slot to store the distance function
     make_var_var_distance_fun = NULL,
 
     # =====================
     # 2. PREDICT ONE VARIABLE
     # =====================
-    # Ici, on affecte une nouvelle variable en comparant sa dissimilarité
-    # aux médoïdes des clusters existants.
     predict_one_variable = function(x_new, var_name) {
       X_ref   <- private$FX_active
       centers <- private$FCenters
@@ -264,14 +269,12 @@ Kmedoids <- R6::R6Class(
         stop("[Kmedoids] New variable must be numeric or categorical.")
       }
 
-      # Préparer x_new selon son type
       if (is_num) {
         x_new_vec <- as.numeric(x_new)
       } else {
         x_new_vec <- as.character(x_new)
       }
 
-      # Construit un petit helper distance(x_new, var_j)
       compute_new_to_var <- function(j) {
         j_is_num <- j %in% num_idx
         j_is_cat <- j %in% cat_idx
@@ -293,15 +296,14 @@ Kmedoids <- R6::R6Class(
           return(d)
         }
 
-        # mixte → dissimilarité max
         return(1)
       }
 
-      K    <- length(centers)
+      K     <- length(centers)
       d_all <- numeric(K)
 
       for (k in seq_len(K)) {
-        med_j <- centers[k]
+        med_j    <- centers[k]
         d_all[k] <- compute_new_to_var(med_j)
       }
 
@@ -338,68 +340,20 @@ Kmedoids <- R6::R6Class(
         return(invisible(NULL))
       }
 
-      # récupère la fonction distance(j, l) définie dans run_clustering
-      if (is.null(private$make_var_var_distance_fun)) {
-        # au cas où, on la recrée à partir de X
-        private$make_var_var_distance_fun <- function(X_internal) {
-          num_idx <- private$FNumCols
-          cat_idx <- private$FCatCols
-
-          X_num <- if (length(num_idx) > 0L) {
-            as.matrix(X_internal[, num_idx, drop = FALSE])
-          } else NULL
-
-          X_cat <- if (length(cat_idx) > 0L) {
-            as.matrix(as.data.frame(
-              lapply(X_internal[, cat_idx, drop = FALSE], as.character),
-              stringsAsFactors = FALSE
-            ))
-          } else NULL
-
-          function(j, l) {
-            if (j == l) return(0)
-
-            j_is_num <- j %in% num_idx
-            l_is_num <- l %in% num_idx
-            j_is_cat <- j %in% cat_idx
-            l_is_cat <- l %in% cat_idx
-
-            if (j_is_num && l_is_num && !is.null(X_num)) {
-              col_j <- which(num_idx == j)
-              col_l <- which(num_idx == l)
-              xj    <- X_num[, col_j]
-              xl    <- X_num[, col_l]
-              r2    <- private$r2_corr(xj, xl)
-              d     <- 1 - r2
-              if (is.na(d)) d <- 1
-              return(d)
-            }
-
-            if (j_is_cat && l_is_cat && !is.null(X_cat)) {
-              col_j <- which(cat_idx == j)
-              col_l <- which(cat_idx == l)
-              xj    <- X_cat[, col_j]
-              xl    <- X_cat[, col_l]
-              d     <- private$simple_matching(xj, xl)
-              if (is.na(d)) d <- 1
-              return(d)
-            }
-
-            return(1)
-          }
-        }
+      # ensure distance function is available
+      if (is.null(private$make_var_var_distance_fun)) {  # FIX: unified builder
+        private$make_var_var_distance_fun <- private$build_var_var_distance_fun(X)
       }
-
-      compute_dist_vars <- private$make_var_var_distance_fun(X)
+      compute_dist_vars <- private$make_var_var_distance_fun
 
       var_names <- colnames(X)
       dist_vec  <- numeric(p)
       adh_vec   <- numeric(p)
 
       for (j in seq_len(p)) {
-        k       <- clusters[j]
-        medoid  <- centers[k]
-        d_j     <- compute_dist_vars(j, medoid)
+        k      <- clusters[j]
+        medoid <- centers[k]
+        d_j    <- compute_dist_vars(j, medoid)
         dist_vec[j] <- d_j
         adh_vec[j]  <- 1 - d_j
       }
@@ -467,11 +421,10 @@ Kmedoids <- R6::R6Class(
         stop("[Kmedoids] No clustering result available.")
       }
 
-      if (is.null(private$make_var_var_distance_fun)) {
-        private$summary_membership_impl()  # initialise la distance
+      if (is.null(private$make_var_var_distance_fun)) {  # FIX: unified builder
+        private$make_var_var_distance_fun <- private$build_var_var_distance_fun(X)
       }
-
-      compute_dist_vars <- private$make_var_var_distance_fun(X)
+      compute_dist_vars <- private$make_var_var_distance_fun
 
       var_names <- colnames(X)
       adh_vec   <- numeric(p)
