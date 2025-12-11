@@ -21,13 +21,6 @@ Interface <- R6::R6Class(
 
     #' @description
     #' Create a new Interface object.
-    #'
-    #' @param method Clustering method: one of \code{"auto"}, \code{"kmeans"},
-    #'   \code{"kmodes"}, \code{"kprototypes"}, \code{"kmedoids"}.
-    #' @param K Number of clusters (K ≥ 2).
-    #' @param scale Logical, standardize numeric variables before modelling?
-    #' @param lambda Positive numeric weight for the categorical part (used
-    #'   by k-prototypes and k-medoids).
     initialize = function(method = c("auto", "kmeans", "kmodes", "kprototypes", "kmedoids"),
                           K      = 3,
                           scale  = TRUE,
@@ -35,15 +28,12 @@ Interface <- R6::R6Class(
 
       method <- match.arg(method)
 
-      if (!is.numeric(K) || length(K) != 1L || K < 2) {
+      if (!is.numeric(K) || length(K) != 1L || K < 2)
         stop("[Interface] K must be a numeric >= 2.")
-      }
-      if (!is.logical(scale) || length(scale) != 1L) {
+      if (!is.logical(scale) || length(scale) != 1L)
         stop("[Interface] 'scale' must be TRUE or FALSE.")
-      }
-      if (!is.numeric(lambda) || length(lambda) != 1L || lambda <= 0) {
+      if (!is.numeric(lambda) || length(lambda) != 1L || lambda <= 0)
         stop("[Interface] 'lambda' must be a numeric > 0.")
-      }
 
       private$FRequestedMethod <- method
       private$FK               <- as.integer(K)
@@ -55,47 +45,35 @@ Interface <- R6::R6Class(
       private$FInertiaPath     <- NULL
     },
 
-    #' @description
-    #' Fit the variable clustering model on active variables \code{X}.
-    #'
-    #' @param X data.frame (or coercible) of active variables to be clustered.
+    #' @description Fit the model
     fit = function(X) {
-      if (!is.data.frame(X)) {
-        X <- as.data.frame(X, stringsAsFactors = FALSE)
-      }
 
-      if (ncol(X) < 2L) {
+      if (!is.data.frame(X))
+        X <- as.data.frame(X, stringsAsFactors = FALSE)
+
+      if (ncol(X) < 2)
         stop("[Interface] At least 2 active variables are required.")
-      }
 
       method_eff <- private$decide_effective_method(X)
       engine     <- private$create_engine(method_eff)
 
-      # Fit underlying engine (inherits ClusterBase)
       engine$fit(X)
 
       private$FEngine          <- engine
       private$FEffectiveMethod <- method_eff
-      private$FInertiaPath     <- NULL  # reset any previous inertia path
+      private$FInertiaPath     <- NULL
 
       invisible(self)
     },
 
-    #' @description
-    #' Attach supplementary variables to existing clusters.
-    #'
-    #' @param X_new data.frame of supplementary variables.
-    #' @return A data.frame with cluster assignment and membership indicators.
+    #' @description Predict supplementary variables
     predict = function(X_new) {
-      if (is.null(private$FEngine)) {
+      if (is.null(private$FEngine))
         stop("[Interface] No fitted model: call fit() first.")
-      }
       private$FEngine$predict(X_new)
     },
 
-    #' @description
-    #' Print a concise summary of the fitted model.
-    #' @param ... Regular print params
+    #' @description Print summary
     print = function(...) {
       cat("Classe 'Interface'\n")
       cat("  Requested method :", private$FRequestedMethod, "\n")
@@ -114,9 +92,7 @@ Interface <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Detailed summary: facade info + engine-level summary.
-    #' @param ... Regular summary params
+    #' @description Detailed summary
     summary = function(...) {
       cat("=== Interface summary ===\n")
       cat("Requested method :", private$FRequestedMethod, "\n")
@@ -134,87 +110,82 @@ Interface <- R6::R6Class(
       private$FEngine$summary(...)
     },
 
-    #' @description
-    #' High-level plotting interface.
-    #'
-    #' @param type Plot type:
-    #'   \itemize{
-    #'     \item \code{"inertia"}        : inertia vs K (requires
-    #'           \code{compute_inertia_path()} to have been called),
-    #'     \item \code{"clusters"}       : cluster sizes / distribution,
-    #'     \item \code{"membership"}     : membership indicators per variable,
-    #'     \item \code{"profiles"}       : profiles / heatmaps on individuals.
-    #'   }
-    #' @param ... Regular plot params
+    #' @description Plot interface
     plot = function(type = c("inertia", "clusters", "membership", "profiles"), ...) {
+
       type <- match.arg(type)
 
+      # -------------------------------------------------------
+      # INERTIA CASE: elbow curve OR inertia object
+      # -------------------------------------------------------
       if (type == "inertia") {
-        if (is.null(private$FInertiaPath)) {
-          stop("[Interface] No inertia path available. Call compute_inertia_path() first.")
+
+        # 1) Inertia path exists → elbow plot
+        if (!is.null(private$FInertiaPath)) {
+
+          df <- private$FInertiaPath
+          if (!all(c("K", "inertia") %in% names(df)))
+            stop("[Interface] Inertia path has an invalid structure.")
+
+          graphics::plot(
+            df$K,
+            df$inertia,
+            type = "b",
+            xlab = "Number of clusters K",
+            ylab = "Within-cluster inertia",
+            main = "Inertia vs K (elbow)",
+            ...
+          )
+
+          return(invisible(NULL))
         }
 
-        df <- private$FInertiaPath
-        if (!all(c("K", "inertia") %in% names(df))) {
-          stop("[Interface] Inertia path has an invalid structure.")
+        # 2) No path — use the inertia object of the fitted engine
+        if (!is.null(private$FEngine)) {
+          obj <- private$FEngine$get_inertia_object()
+          if (!is.null(obj)) {
+            obj$plot(...)
+            return(invisible(NULL))
+          }
         }
 
-        graphics::plot(
-          df$K, df$inertia,
-          type = "b",
-          xlab = "Number of clusters K",
-          ylab = "Within-cluster inertia",
-          main = "Inertia vs K (elbow method)",
-          ...
-        )
-        return(invisible(NULL))
+        stop("[Interface] No inertia or inertia path available.")
       }
 
-      if (is.null(private$FEngine)) {
+      # -------------------------------------------------------
+      # OTHER PLOT TYPES
+      # -------------------------------------------------------
+      if (is.null(private$FEngine))
         stop("[Interface] No fitted model: call fit() first.")
-      }
 
       private$FEngine$plot(type = type, ...)
     },
 
-    #' @description
-    #' Compute an inertia path for a sequence of K values, keeping the
-    #' same method / scale / lambda as the current facade.
-    #'
-    #' @param K_seq Integer vector of K values (e.g. 2:10).
-    #' @param X Optional data.frame of active variables. If \code{NULL},
-    #'   reuse the active X stored in the fitted engine.
-    #' @return Invisibly, a data.frame with columns \code{K} and \code{inertia}.
+    #' @description Compute inertia path
     compute_inertia_path = function(K_seq, X = NULL) {
 
-      if (missing(K_seq) || length(K_seq) == 0L) {
-        stop("[Interface] K_seq must be a non-empty vector of integers.")
-      }
-      K_seq <- unique(as.integer(K_seq))
-      K_seq <- sort(K_seq)
-      K_seq <- K_seq[K_seq >= 2L]
+      if (missing(K_seq) || length(K_seq) == 0L)
+        stop("[Interface] K_seq must be a non-empty vector.")
 
-      if (length(K_seq) == 0L) {
-        stop("[Interface] K_seq must contain values >= 2.")
-      }
+      K_seq <- sort(unique(as.integer(K_seq)))
+      K_seq <- K_seq[K_seq >= 2]
 
-      # Active data
+      if (length(K_seq) == 0)
+        stop("[Interface] K_seq must contain integers >= 2.")
+
       if (is.null(X)) {
-        if (is.null(private$FEngine)) {
-          stop("[Interface] No fitted model and no X provided.")
-        }
+        if (is.null(private$FEngine))
+          stop("[Interface] No fitted engine and no X provided.")
         X <- private$FEngine$get_X_descr()$X_active
       }
 
-      if (!is.data.frame(X)) {
+      if (!is.data.frame(X))
         X <- as.data.frame(X, stringsAsFactors = FALSE)
-      }
 
       p <- ncol(X)
       K_seq <- K_seq[K_seq <= p]
-      if (length(K_seq) == 0L) {
-        stop("[Interface] All K in K_seq exceed the number of variables.")
-      }
+      if (length(K_seq) == 0)
+        stop("[Interface] All K in K_seq exceed number of variables.")
 
       method_eff <- private$decide_effective_method(X)
 
@@ -224,66 +195,53 @@ Interface <- R6::R6Class(
         Ki <- K_seq[i]
         engine_i <- private$create_engine(method_eff, K_override = Ki)
 
-        # we ignore potential errors here? better to catch them and set NA
         inertias[i] <- tryCatch({
           engine_i$fit(X)
           engine_i$get_inertia()
-        }, error = function(e) {
-          NA_real_
-        })
+        }, error = function(e) NA_real_)
       }
 
-      df <- data.frame(
-        K       = K_seq,
-        inertia = inertias
-      )
-
+      df <- data.frame(K = K_seq, inertia = inertias)
       private$FInertiaPath <- df
+
       invisible(df)
     },
 
-    #' @description
-    #' Textual interpretation of the clustering solution.
-    #'
-    #' Delegates to the underlying engine's \code{interpret_clusters()} method.
-    #'
-    #' @param style Either \code{"compact"} or \code{"detailed"}.
+    #' @description Interpret clusters
     interpret_clusters = function(style = c("compact", "detailed")) {
-      if (is.null(private$FEngine)) {
+      if (is.null(private$FEngine))
         stop("[Interface] No fitted model: call fit() first.")
-      }
       private$FEngine$interpret_clusters(style = style)
     },
 
-    # ---- Simple getters used by Shiny and external code -------------------
-
-    #' @description Get cluster assignments (one per active variable).
+    #' @description Get clusters
     get_clusters = function() {
       if (is.null(private$FEngine)) return(NULL)
       private$FEngine$get_clusters()
     },
 
-    #' @description Get within-cluster inertia of the fitted model.
+    #' @description Get inertia
     get_inertia = function() {
       if (is.null(private$FEngine)) return(NA_real_)
       private$FEngine$get_inertia()
     },
 
-    #' @description Get the effective method actually used by the engine.
-    get_method = function() {
-      private$FEffectiveMethod
+    #' @description Get inertia object
+    get_inertia_object = function() {
+      if (is.null(private$FEngine)) return(NULL)
+      private$FEngine$get_inertia_object()
     },
 
-    #' @description Get cluster prototypes / centers / medoids.
-    #'
-    #' For k-means and k-modes, this is an internal representation.
-    #' For k-medoids, this is a data.frame of medoid variables.
+    #' @description Get method
+    get_method = function() private$FEffectiveMethod,
+
+    #' @description Get centers
     get_centers = function() {
       if (is.null(private$FEngine)) return(NULL)
       private$FEngine$get_centers()
     },
 
-    #' @description Get the convergence flag of the fitted engine.
+    #' @description Get convergence flag
     get_convergence = function() {
       if (is.null(private$FEngine)) return(NA)
       private$FEngine$get_convergence()
@@ -292,28 +250,28 @@ Interface <- R6::R6Class(
 
   private = list(
 
-    # requested parameters
+    # Requested params
     FRequestedMethod = NA_character_,
     FK               = NA_integer_,
     FScale           = TRUE,
     FLambda          = 1,
 
-    # underlying fitted engine (ClusterBase subclass)
+    # Underlying R6 engine
     FEngine          = NULL,
 
-    # effective method used (after "auto" decision)
+    # Effective method after auto-detection
     FEffectiveMethod = NA_character_,
 
-    # inertia path data.frame (K, inertia)
+    # Elbow curve inertia path
     FInertiaPath     = NULL,
 
     # ------------------------------------------------------------------
-    # Decide effective method from requested method + data types
+    # Decide effective method
     # ------------------------------------------------------------------
     decide_effective_method = function(X) {
+
       method_req <- private$FRequestedMethod
 
-      # Determine variable types
       is_num <- vapply(X, is.numeric, logical(1L))
       is_cat <- vapply(
         X,
@@ -325,33 +283,23 @@ Interface <- R6::R6Class(
       has_cat <- any(is_cat)
 
       if (method_req != "auto") {
-        # basic consistency checks
-        if (method_req == "kmeans" && !all(is_num)) {
-          stop("[Interface] k-means requires all active variables to be numeric.")
-        }
-        if (method_req == "kmodes" && !all(is_cat)) {
-          stop("[Interface] k-modes requires all active variables to be categorical.")
-        }
-        # k-prototypes / k-medoids can handle mixed or homogeneous types
+        if (method_req == "kmeans" && !all(is_num))
+          stop("[Interface] k-means requires all numeric variables.")
+        if (method_req == "kmodes" && !all(is_cat))
+          stop("[Interface] k-modes requires all categorical variables.")
         return(method_req)
       }
 
-      # method = "auto"
-      if (has_num && !has_cat) {
-        return("kmeans")
-      }
-      if (!has_num && has_cat) {
-        return("kmodes")
-      }
-
-      # mixed case: choose k-prototypes by default
+      if (has_num && !has_cat) return("kmeans")
+      if (!has_num && has_cat) return("kmodes")
       return("kprototypes")
     },
 
     # ------------------------------------------------------------------
-    # Create an engine from a method name
+    # Create clustering engine
     # ------------------------------------------------------------------
     create_engine = function(method_effective, K_override = NULL) {
+
       K_val <- if (is.null(K_override)) private$FK else as.integer(K_override)
 
       if (method_effective == "kmeans") {
@@ -382,7 +330,7 @@ Interface <- R6::R6Class(
         ))
       }
 
-      stop("[Interface] Unsupported effective method: ", method_effective)
+      stop("[Interface] Unsupported method: ", method_effective)
     }
   )
 )
