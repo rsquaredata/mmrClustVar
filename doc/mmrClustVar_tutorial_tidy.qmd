@@ -1,0 +1,518 @@
+---
+title: "mmrClustVar — Variable Clustering Engines & Interface"
+subtitle: "Tutorial, Diagnostics, and Visual Guide"
+author: "Rina"
+format:
+  html:
+    theme: flatly
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    page-layout: article
+execute:
+  echo: true
+  warning: true
+  message: true
+  error: true
+  freeze: auto
+editor: visual
+---
+
+```{r setup, include=FALSE}
+library(devtools)
+load_all(".")
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(viridis)
+
+theme_set(theme_minimal(base_size = 14))
+```
+
+# 1. Overview
+
+This document is a **tidy-style tutorial and diagnostic notebook** for the `mmrClustVar` package.
+
+It covers:
+
+- engine-level behaviour:
+  - `Kmeans` (numeric)
+  - `Kmodes` (categorical)
+  - `Kprototypes` (mixed)
+  - `Kmedoids` (mixed distance based on 1 − r² and simple matching)
+- the high-level `Interface` facade
+- inertia paths for the elbow method
+- several visual summaries of cluster structure:
+  - cluster membership barplots
+  - distance heatmaps
+  - dendrograms based on variable distances
+  - parallel coordinate plots
+  - PCA projection for numeric variables
+
+The overall flow is inspired by **tidymodels-style** documentation:
+
+1. *Specify* a model (engine or interface)
+2. *Fit* the model
+3. *Inspect* the summary
+4. *Visualise* the structure
+5. *Interpret* the results
+
+---
+
+# 2. Test Data
+
+We build three toy datasets:
+
+- `X_num` — purely numeric (iris measurements)
+- `X_cat` — purely categorical (simple synthetic factors)
+- `X_mix` — mixed numeric + categorical
+
+```{r}
+set.seed(123)
+
+# Numeric dataset (iris measurements)
+X_num <- iris[, 1:4]
+
+# Categorical dataset (simple synthetic example)
+X_cat <- data.frame(
+  color   = factor(rep(c("red","blue","green"), length.out = 60)),
+  shape   = factor(rep(c("circle","square"), length.out = 60)),
+  weather = factor(rep(c("sun","rain","cloud"), length.out = 60)),
+  drink   = factor(rep(c("tea","coffee","water"), length.out = 60))
+)
+
+# Mixed dataset
+X_mix <- data.frame(
+  X_num[, 1:3],      # numeric part
+  X_cat[, 1:3]       # categorical part
+)
+
+str(X_num)
+str(X_cat)
+str(X_mix)
+```
+
+---
+
+# 3. K-means Engine (numeric variables)
+
+## 3.1 Model specification & fit
+
+```{r}
+engine_km <- Kmeans$new(
+  K      = 3,
+  scale  = TRUE
+)
+
+engine_km$fit(X_num)
+```
+
+## 3.2 Inspecting the model
+
+```{r}
+engine_km$print()
+engine_km$summary()
+```
+
+### Interpretation
+
+- The `summary()` output reports:
+  - the chosen method (`kmeans`)
+  - the number of clusters `K`
+  - a convergence flag
+  - the **within-cluster inertia** (sum of squared distances)
+  - cluster sizes
+  - optional membership indicators (depending on the engine implementation)
+- A smaller within-cluster inertia indicates tighter, more homogeneous clusters.
+
+## 3.3 Cluster membership (variables)
+
+We build a small helper object that links variable names to their clusters:
+
+```{r}
+df_km <- data.frame(
+  variable = colnames(X_num),
+  cluster  = engine_km$get_clusters()
+)
+
+df_km
+```
+
+### 3.4 Visualising variable clusters (barplot)
+
+```{r}
+ggplot(df_km, aes(x = variable, y = cluster, fill = factor(cluster))) +
+  geom_col(width = 0.6) +
+  scale_fill_viridis_d(option = "D", end = 0.9) +
+  labs(
+    title = "K-means – Variable Clusters",
+    x = "Variable",
+    y = "Cluster ID",
+    fill = "Cluster"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+This barplot shows how variables are assigned to clusters:
+
+- variables in the same bar height (same y) belong to the same cluster
+- this is useful to quickly check if the clustering is trivial (all variables in one cluster) or meaningful.
+
+## 3.5 PCA projection for numeric variables
+
+To visualise the structure of `X_num`, we run a PCA and colour individuals by the cluster of their **most associated variable** (illustrative only):
+
+```{r}
+pca_num <- prcomp(X_num, scale. = TRUE)
+
+pca_df <- as.data.frame(pca_num$x[, 1:2])
+names(pca_df) <- c("PC1", "PC2")
+
+# Here we simply assign each variable cluster to all points (for illustration).
+# In a more advanced tutorial, we could define an individual-level cluster proxy.
+pca_df$dummy_cluster <- factor(1)
+
+ggplot(pca_df, aes(x = PC1, y = PC2, color = dummy_cluster)) +
+  geom_point(alpha = 0.7) +
+  scale_color_viridis_d(end = 0.8) +
+  labs(
+    title = "PCA of Numeric Data (illustrative)",
+    x = "PC1",
+    y = "PC2",
+    color = "Cluster"
+  )
+```
+
+---
+
+# 4. K-modes Engine (categorical variables)
+
+## 4.1 Specification & fit
+
+```{r}
+engine_kmodes <- Kmodes$new(
+  K = 2
+)
+
+engine_kmodes$fit(X_cat)
+```
+
+## 4.2 Summary and cluster sizes
+
+```{r}
+engine_kmodes$print()
+engine_kmodes$summary()
+```
+
+### Interpretation
+
+- K-modes uses **simple matching dissimilarity**:
+  - distance = proportion of mismatches between two categorical variables
+- Cluster prototypes are **modes** (most frequent categories) rather than means.
+
+## 4.3 Visualising variable clusters
+
+```{r}
+df_kmodes <- data.frame(
+  variable = colnames(X_cat),
+  cluster  = engine_kmodes$get_clusters()
+)
+
+ggplot(df_kmodes, aes(x = variable, y = cluster, fill = factor(cluster))) +
+  geom_col(width = 0.6) +
+  scale_fill_viridis_d(option = "C", end = 0.9) +
+  labs(
+    title = "K-modes – Variable Clusters",
+    x = "Variable",
+    y = "Cluster ID",
+    fill = "Cluster"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+---
+
+# 5. K-prototypes Engine (mixed variables)
+
+## 5.1 Specification & fit
+
+```{r}
+engine_kprot <- Kprototypes$new(
+  K      = 3,
+  scale  = TRUE,
+  lambda = 1
+)
+
+engine_kprot$fit(X_mix)
+```
+
+## 5.2 Summary
+
+```{r}
+engine_kprot$print()
+engine_kprot$summary()
+```
+
+### Interpretation
+
+- K-prototypes combines:
+  - numeric distance (typ. squared Euclidean)
+  - categorical distance (simple matching) weighted by `lambda`
+- `lambda` controls the tradeoff:
+  - large `lambda` → categorical part dominates
+  - small `lambda` → numeric part dominates
+
+## 5.3 Variable clusters (barplot)
+
+```{r}
+df_kprot <- data.frame(
+  variable = colnames(X_mix),
+  cluster  = engine_kprot$get_clusters()
+)
+
+ggplot(df_kprot, aes(x = variable, y = cluster, fill = factor(cluster))) +
+  geom_col(width = 0.6) +
+  scale_fill_viridis_d(option = "B", end = 0.9) +
+  labs(
+    title = "K-prototypes – Variable Clusters",
+    x = "Variable",
+    y = "Cluster ID",
+    fill = "Cluster"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+---
+
+# 6. K-medoids Engine (mixed distance)
+
+## 6.1 Specification & fit
+
+```{r}
+engine_kmed <- Kmedoids$new(
+  K      = 3,
+  lambda = 1
+)
+
+engine_kmed$fit(X_mix)
+```
+
+## 6.2 Summary and textual interpretation
+
+```{r}
+engine_kmed$print()
+engine_kmed$summary()
+engine_kmed$interpret_clusters(style = "detailed")
+```
+
+### Interpretation
+
+- Medoids are **actual variables** chosen as cluster centres.
+- Distances are defined as:
+  - numeric vs numeric: 1 − r²
+  - categorical vs categorical: simple matching
+  - mixed: maximum dissimilarity (= 1)
+- This engine is robust and directly interpretable:
+  - “medoid” variables act as **representative features** for each cluster.
+
+## 6.3 Variable membership (sorted barplot)
+
+We use the membership indicators from the engine summary (if available) to build a sorted barplot:
+
+```{r}
+membership_kmed <- engine_kmed$summary_membership_impl()
+# If summary_membership_impl() is internal, you can instead store its return
+# value inside summary() or expose a small getter in the engine.
+
+if (!is.null(membership_kmed) && is.data.frame(membership_kmed)) {
+  df_mem <- membership_kmed %>%
+    arrange(desc(adhesion))
+
+  ggplot(df_mem, aes(x = reorder(variable, adhesion), y = adhesion,
+                     fill = factor(cluster))) +
+    geom_col() +
+    coord_flip() +
+    scale_fill_viridis_d(end = 0.9) +
+    labs(
+      title = "K-medoids – Variable Membership (sorted by adhesion)",
+      x = "Variable",
+      y = "Adhesion (1 − distance to medoid)",
+      fill = "Cluster"
+    )
+}
+```
+
+---
+
+# 7. Distance Heatmap & Dendrogram
+
+To provide a more global picture of the variable structure, we can build a **distance matrix** and visualise:
+
+- a heatmap
+- a hierarchical clustering dendrogram
+
+For this section we illustrate on the numeric dataset `X_num` using 1 − r² as a distance.
+
+```{r}
+# Compute 1 - r^2 distance between variables
+cor_mat <- cor(X_num, use = "pairwise.complete.obs")
+r2_mat  <- cor_mat^2
+dist_mat <- 1 - r2_mat
+
+dist_mat
+```
+
+## 7.1 Heatmap (ggplot2)
+
+```{r}
+dist_df <- as.data.frame(dist_mat) %>%
+  mutate(var1 = rownames(dist_mat)) %>%
+  tidyr::pivot_longer(
+    cols = -var1,
+    names_to = "var2",
+    values_to = "distance"
+  )
+
+ggplot(dist_df, aes(x = var1, y = var2, fill = distance)) +
+  geom_tile() +
+  scale_fill_viridis(option = "C", direction = -1) +
+  labs(
+    title = "Distance Heatmap (1 − r²) between Numeric Variables",
+    x = "Variable",
+    y = "Variable",
+    fill = "Distance"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## 7.2 Dendrogram based on distances
+
+```{r}
+hc <- hclust(as.dist(dist_mat), method = "average")
+
+plot(
+  hc,
+  main = "Hierarchical Clustering of Variables (1 − r² distance)",
+  xlab = "",
+  sub  = ""
+)
+abline(h = 0.5, col = "grey60", lty = 2)
+```
+
+You can compare the **hierarchical structure** suggested by the dendrogram to the
+clusters obtained via the k-means / k-medoids engines.
+
+---
+
+# 8. Interface Facade
+
+## 8.1 Specification & fit
+
+```{r}
+iface_km <- Interface$new(
+  method = "kmeans",
+  K      = 3,
+  scale  = TRUE
+)
+
+iface_km$fit(X_num)
+```
+
+## 8.2 Summary and plots
+
+```{r}
+iface_km$summary()
+iface_km$plot(type = "clusters")
+iface_km$plot(type = "membership")
+```
+
+### Interpretation
+
+The interface:
+
+- selects the appropriate engine (or uses the user-specified one),
+- reuses the same preprocessing logic,
+- exposes a unified API for:
+  - `fit()`
+  - `summary()`
+  - `plot()`
+  - `interpret_clusters()`
+
+This makes it easier to:
+
+- compare different engines on the same dataset
+- expose a single facade to end-users (e.g. in Shiny apps).
+
+---
+
+# 9. Elbow Method (Inertia Path)
+
+## 9.1 Computing inertia path
+
+```{r}
+iface_elbow <- Interface$new(
+  method = "kmeans",
+  K      = 3,
+  scale  = TRUE
+)
+
+iface_elbow$fit(X_num)
+
+inertia_path <- iface_elbow$compute_inertia_path(
+  K_seq = 2:8,
+  X     = X_num
+)
+
+inertia_path
+```
+
+## 9.2 Visualising the elbow curve (ggplot2)
+
+```{r}
+ggplot(inertia_path, aes(x = K, y = inertia)) +
+  geom_line(size = 1) +
+  geom_point(size = 3, color = "#1f78b4") +
+  labs(
+    title = "Elbow Method – Inertia vs Number of Clusters K",
+    x = "K (clusters)",
+    y = "Within-cluster inertia"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+### Interpretation
+
+- As K grows, inertia decreases (clusters become tighter).
+- The **elbow point** is where the marginal gain drops:
+  - before the elbow: adding clusters significantly reduces inertia,
+  - after the elbow: gains are small and may not justify model complexity.
+
+---
+
+# 10. Conclusion
+
+In this tutorial we:
+
+- specified and fitted all four engines (`Kmeans`, `Kmodes`, `Kprototypes`, `Kmedoids`),
+- inspected cluster assignments and inertia,
+- visualised variable clusters via:
+  - barplots,
+  - heatmaps,
+  - dendrograms,
+  - PCA projections (numeric),
+- used the `Interface` facade to:
+  - harmonise usage,
+  - compute inertia paths (elbow method),
+  - produce simple plots for cluster sizes and membership.
+
+This document can be used as:
+
+- a **reference vignette** for `mmrClustVar`,
+- a **unit-test notebook** to validate core behaviours,
+- a **teaching support** to introduce variable clustering for mixed data.
+
