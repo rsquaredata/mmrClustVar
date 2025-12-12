@@ -1,0 +1,110 @@
+---
+title: "mmrClustVar — Engines & Interface: Unit Tests & Tutorial"
+author: "Rina"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-tools: true
+    df-print: paged
+    page-layout: article
+execute:
+  echo: true
+  warning: true
+  message: true
+  error: true
+  freeze: auto
+editor: visual
+---
+
+```{r}
+library(devtools)
+load_all(".")
+```
+
+# 1. Preparing Test Data
+
+```{r}
+set.seed(123)
+
+X_num <- iris[, 1:4]
+
+X_cat <- data.frame(
+  color   = factor(rep(c("red","blue","green"), length.out = 60)),
+  shape   = factor(rep(c("circle","square"), length.out = 60)),
+  weather = factor(rep(c("sun","rain","cloud"), length.out = 60)),
+  drink   = factor(rep(c("tea","coffee","water"), length.out = 60))
+)
+
+X_mix <- data.frame(
+  X_num[, 1:3],
+  X_cat[, 1:3]
+)
+```
+
+# 2. Testing K-means Engine
+
+```{r}
+engine_km <- Kmeans$new(K = 3, scale = TRUE)
+engine_km$fit(X_num)
+engine_km$summary()
+```
+
+## Interpretation
+- Clusters should correspond to numeric structure.
+- Centers represent prototype vectors.
+- Inertia will be used in Interface.
+
+# 3. Testing Kmodes Engine
+
+```{r}
+engine_kmodes <- Kmodes$new(K = 2)
+engine_kmodes$fit(X_cat)
+engine_kmodes$summary()
+```
+
+## Interpretation
+- Modes represent categorical prototypes.
+- Simple matching dissimilarity used.
+
+# 4. Testing Kprototypes Engine
+
+```{r}
+engine_kprot <- Kprototypes$new(K = 3, scale = TRUE, lambda = 1)
+engine_kprot$fit(X_mix)
+engine_kprot$summary()
+```
+
+# 5. Testing Kmedoids Engine
+
+```{r}
+engine_kmed <- Kmedoids$new(K = 3, lambda = 1)
+engine_kmed$fit(X_mix)
+engine_kmed$summary()
+engine_kmed$interpret_clusters(style = "detailed")
+```
+
+# 6. Interface Testing
+
+```{r}
+iface_km <- Interface$new(method = "kmeans", K = 3, scale = TRUE)
+iface_km$fit(X_num)
+iface_km$summary()
+iface_km$plot(type = "clusters")
+```
+
+# 7. Inertia Path (Elbow Method)
+
+```{r}
+iface_elbow <- Interface$new(method = "kmeans", K = 3, scale = TRUE)
+iface_elbow$fit(X_num)
+
+inertia_path <- iface_elbow$compute_inertia_path(K_seq = 2:6, X = X_num)
+inertia_path
+
+iface_elbow$plot(type = "inertia")
+```
+
